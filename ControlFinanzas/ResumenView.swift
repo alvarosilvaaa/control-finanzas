@@ -251,45 +251,184 @@ private struct GraficoAcumulado: View {
 
 private struct GraficoCategorias: View {
     let resumen: ResumenMes
+    /// Categoría (o "Otras") resaltada en el gráfico.
+    @State private var seleccion: String?
+
+    private static let otras = "Otras"
+    /// Por debajo de este peso, una categoría se agrupa en "Otras" dentro del gráfico.
+    private static let umbral = 0.04
+
+    private var total: Double { resumen.totalGastado }
+
+    /// Categorías pequeñas que se juntan en "Otras" (solo si hay al menos dos).
+    private var pequeñas: [(categoria: String, total: Double)] {
+        guard total > 0 else { return [] }
+        let lista = resumen.porCategoria.filter { $0.total / total < Self.umbral }
+        return lista.count >= 2 ? lista : []
+    }
+
+    /// Porciones del gráfico: las categorías grandes y, al final, "Otras".
+    private var porciones: [(categoria: String, total: Double)] {
+        let agrupadas = Set(pequeñas.map(\.categoria))
+        var lista = resumen.porCategoria.filter { !agrupadas.contains($0.categoria) }
+        if !pequeñas.isEmpty { lista.append((Self.otras, pequeñas.reduce(0) { $0 + $1.total })) }
+        return lista
+    }
+
+    /// Porción a la que pertenece una categoría.
+    private func porcion(de categoria: String) -> String {
+        pequeñas.contains { $0.categoria == categoria } ? Self.otras : categoria
+    }
+
+    /// Porción bajo un punto del gráfico, o `nil` si el punto no cae sobre el anillo.
+    /// Las porciones empiezan arriba (las 12) y avanzan en el sentido de las agujas del reloj.
+    private func porcion(en punto: CGPoint, marco: CGRect) -> String? {
+        let dx = punto.x - marco.midX, dy = punto.y - marco.midY
+        let radio = min(marco.width, marco.height) / 2
+        let distancia = (dx * dx + dy * dy).squareRoot()
+        guard distancia >= radio * 0.5, distancia <= radio * 1.15, total > 0 else { return nil }
+        var angulo = atan2(dx, -dy)
+        if angulo < 0 { angulo += 2 * .pi }
+        let valor = angulo / (2 * .pi) * porciones.reduce(0) { $0 + $1.total }
+        var acumulado = 0.0
+        for p in porciones {
+            acumulado += p.total
+            if valor <= acumulado { return p.categoria }
+        }
+        return porciones.last?.categoria
+    }
 
     var body: some View {
-        let datos = resumen.porCategoria
-        let total = resumen.totalGastado
+        let porciones = porciones
+        let resaltada = seleccion.map(porcion(de:))
         Tarjeta {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Por categoría").font(.headline)
-                Chart(datos, id: \.categoria) { d in
-                    SectorMark(angle: .value("Total", d.total), innerRadius: .ratio(0.62), angularInset: 1.5)
+                Chart(porciones, id: \.categoria) { d in
+                    let indice = porciones.firstIndex { $0.categoria == d.categoria } ?? 0
+                    SectorMark(angle: .value("Total", d.total),
+                               innerRadius: .ratio(0.62),
+                               outerRadius: .ratio(resaltada == d.categoria ? 1 : 0.94),
+                               angularInset: 1.5)
                         .cornerRadius(4)
-                        .foregroundStyle(Tema.gris(datos.firstIndex { $0.categoria == d.categoria } ?? 0, de: datos.count))
+                        .foregroundStyle(resaltada == d.categoria ? Tema.tinta : Tema.gris(indice, de: porciones.count))
+                        .opacity(resaltada == nil || resaltada == d.categoria ? 1 : 0.25)
                 }
-                .chartBackground { _ in
-                    VStack {
-                        Text(Formato.eurSinDecimales(total)).font(.title2.bold())
-                        Text("\(resumen.gastos.count) gastos").font(.caption).foregroundStyle(.secondary)
+                .chartOverlay { proxy in
+                    GeometryReader { geo in
+                        let marco = proxy.plotFrame.map { geo[$0] } ?? geo.frame(in: .local)
+                        Rectangle().fill(.clear).contentShape(Rectangle())
+                            // Tocar una porción la selecciona; tocar la misma otra vez la quita.
+                            .onTapGesture { punto in
+                                guard let p = porcion(en: punto, marco: marco) else { return }
+                                seleccion = seleccion.map(porcion(de:)) == p ? nil : p
+                            }
+                            // Mantener pulsado y deslizar recorre las porciones (también las pequeñas).
+                            .gesture(
+                                LongPressGesture(minimumDuration: 0.25)
+                                    .sequenced(before: DragGesture(minimumDistance: 0))
+                                    .onChanged { valor in
+                                        guard case .second(true, let arrastre?) = valor,
+                                              let p = porcion(en: arrastre.location, marco: marco),
+                                              p != seleccion.map(porcion(de:)) else { return }
+                                        seleccion = p
+                                    }
+                            )
                     }
                 }
-                .frame(height: 200)
+                .overlay { centro }
+                .frame(height: 220)
+                .animation(.snappy(duration: 0.25), value: seleccion)
+                .sensoryFeedback(.selection, trigger: seleccion)
 
                 VStack(spacing: 0) {
-                    ForEach(datos, id: \.categoria) { d in
-                        NavigationLink(value: d.categoria) {
-                            HStack(spacing: 12) {
-                                IconoCategoria(categoria: d.categoria, tamaño: 30)
-                                Text(d.categoria).foregroundStyle(.primary)
-                                Spacer()
-                                Text("\(Int((d.total / total * 100).rounded()))%")
-                                    .font(.caption).foregroundStyle(.secondary)
-                                Text(Formato.eur(d.total)).font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(.primary)
-                                Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
-                            }
-                            .padding(.vertical, 8)
-                        }
-                        if d.categoria != datos.last?.categoria { Divider().padding(.leading, 42) }
+                    ForEach(resumen.porCategoria, id: \.categoria) { d in
+                        fila(d)
+                        if d.categoria != resumen.porCategoria.last?.categoria { Divider().padding(.leading, 42) }
                     }
                 }
             }
+        }
+    }
+
+    // MARK: - Centro del anillo
+
+    @ViewBuilder private var centro: some View {
+        if let seleccion {
+            if seleccion == Self.otras {
+                NavigationLink {
+                    ListaGastosView(titulo: "Otras categorías") { [mes = resumen.mes, nombres = Set(pequeñas.map(\.categoria))] in
+                        mes.contiene($0.fecha) && nombres.contains($0.categoria)
+                    }
+                } label: {
+                    textoCentro(titulo: "Otras", importe: pequeñas.reduce(0) { $0 + $1.total },
+                                detalle: "\(pequeñas.count) categorías")
+                }
+                .buttonStyle(.plain)
+            } else {
+                NavigationLink(value: seleccion) {
+                    let gastado = resumen.porCategoria.first { $0.categoria == seleccion }?.total ?? 0
+                    let cuantos = resumen.gastos.filter { $0.categoria == seleccion }.count
+                    textoCentro(titulo: seleccion, importe: gastado,
+                                detalle: "\(cuantos) \(cuantos == 1 ? "gasto" : "gastos")")
+                }
+                .buttonStyle(.plain)
+            }
+        } else {
+            VStack(spacing: 2) {
+                Text(Formato.eurSinDecimales(total)).font(.title2.bold())
+                Text("\(resumen.gastos.count) gastos").font(.caption).foregroundStyle(.secondary)
+                Text("Toca el gráfico").font(.caption2).foregroundStyle(.tertiary).padding(.top, 2)
+            }
+            .allowsHitTesting(false)
+        }
+    }
+
+    private func textoCentro(titulo: String, importe: Double, detalle: String) -> some View {
+        let porcentaje = total > 0 ? Int((importe / total * 100).rounded()) : 0
+        return VStack(spacing: 2) {
+            Text(titulo).font(.subheadline.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7)
+            Text(Formato.eur(importe)).font(.title3.bold()).monospacedDigit()
+            Text("\(porcentaje) % · \(detalle)").font(.caption).foregroundStyle(.secondary)
+            HStack(spacing: 2) {
+                Text("Ver gastos")
+                Image(systemName: "chevron.right").imageScale(.small)
+            }
+            .font(.caption2.weight(.semibold))
+            .padding(.top, 2)
+        }
+        .frame(width: 120, height: 120)
+        .contentShape(Circle())
+        .transition(.opacity)
+    }
+
+    // MARK: - Lista
+
+    /// La primera vez que tocas una fila se resalta en el gráfico; si ya estaba resaltada, abre sus gastos.
+    @ViewBuilder private func fila(_ d: (categoria: String, total: Double)) -> some View {
+        let elegida = seleccion == d.categoria
+        let contenido = HStack(spacing: 12) {
+            IconoCategoria(categoria: d.categoria, tamaño: 30)
+            Text(d.categoria).foregroundStyle(.primary)
+            Spacer()
+            Text("\(total > 0 ? Int((d.total / total * 100).rounded()) : 0)%")
+                .font(.caption).foregroundStyle(.secondary)
+            Text(Formato.eur(d.total)).font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+            Image(systemName: "chevron.right").font(.caption).foregroundStyle(elegida ? .secondary : .tertiary)
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 8)
+        .background(elegida ? Tema.tinta.opacity(0.06) : .clear, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(.horizontal, -8)
+        .contentShape(Rectangle())
+
+        if elegida {
+            NavigationLink(value: d.categoria) { contenido }
+                .buttonStyle(.plain)
+        } else {
+            Button { seleccion = d.categoria } label: { contenido }
+                .buttonStyle(.plain)
         }
     }
 }
