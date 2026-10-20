@@ -63,7 +63,7 @@ struct MacContentView: View {
         } else {
             switch navegacion.seccion ?? .resumen {
             case .resumen:
-                ResumenView(mostrandoNuevo: $navegacion.mostrandoNuevo)
+                MacResumenView()
             case .movimientos:
                 TablaGastos(titulo: "Movimientos") { _ in true }
             case .sinClasificar:
@@ -98,6 +98,21 @@ private struct PieBarraLateral: View {
         .foregroundStyle(.secondary)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+}
+
+/// Botón de recargar para la barra de herramientas. Es una vista aparte para que se actualice
+/// al terminar la carga (el contenido de la barra no siempre se refresca con el de la pantalla).
+struct BotonRecargar: View {
+    @Environment(Almacen.self) private var almacen
+
+    var body: some View {
+        Button { Task { await almacen.recargar() } } label: {
+            Label("Recargar", systemImage: "arrow.clockwise")
+                .symbolEffect(.rotate, isActive: almacen.cargando)
+        }
+        .disabled(almacen.cargando)
+        .help("Recargar los datos de la hoja (⌘R)")
     }
 }
 
@@ -206,9 +221,7 @@ struct TablaGastos: View {
                 }
             }
             ToolbarItem {
-                if trabajando { ProgressView().controlSize(.small) } else {
-                    Button { Task { await almacen.recargar() } } label: { Label("Recargar", systemImage: "arrow.clockwise") }
-                }
+                BotonRecargar()
             }
             ToolbarItem {
                 Button { navegacion.mostrandoNuevo = true } label: { Label("Nuevo gasto", systemImage: "plus") }
