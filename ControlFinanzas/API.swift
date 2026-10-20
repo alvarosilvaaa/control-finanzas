@@ -91,6 +91,18 @@ struct API {
         try await enviar(cuerpo)
     }
 
+    func guardarDeseo(_ d: Deseo) async throws {
+        var cuerpo: [String: Any] = ["action": "guardarDeseo", "nombre": d.nombre, "enlace": d.enlace, "nota": d.nota,
+                                     "prioridad": d.prioridad.rawValue, "comprado": d.comprado, "añadido": iso(d.añadido)]
+        if !d.esNuevo { cuerpo["id"] = d.id }
+        if let precio = d.precio { cuerpo["precio"] = precio }
+        try await enviar(cuerpo)
+    }
+
+    func borrarDeseo(id: String) async throws {
+        try await enviar(["action": "borrarDeseo", "id": id])
+    }
+
     // MARK: - Transporte
 
     private struct Estado: Decodable {

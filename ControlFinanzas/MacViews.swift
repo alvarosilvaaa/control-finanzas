@@ -22,6 +22,7 @@ struct MacContentView: View {
                     }
                     Label("Meses", systemImage: "calendar").tag(SeccionMac.meses)
                     Label("Ahorro", systemImage: "lightbulb").tag(SeccionMac.ahorro)
+                    Label("Wishlist", systemImage: "gift").tag(SeccionMac.wishlist)
                 }
 
                 if !mesActual.porCategoria.isEmpty {
@@ -82,6 +83,9 @@ struct MacContentView: View {
                 MesesView()
             case .ahorro:
                 AhorroView()
+            case .wishlist:
+                WishlistView()
+                    .navigationTitle("Wishlist")
             case .categoria(let c):
                 TablaGastos(titulo: c) { $0.categoria == c }
             case .dia(let fecha):

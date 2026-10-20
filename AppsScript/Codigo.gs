@@ -3,7 +3,8 @@
  *
  * La app habla con este script mediante peticiones POST con un cuerpo JSON:
  *   { "token": "...", "action": "datos" | "nuevoGasto" | "editarGasto" | "borrarGasto" | "nuevaRegla"
- *                               | "nuevoIngreso" | "borrarIngreso" | "fijarPresupuesto" | "fijarLimite", ... }
+ *                               | "nuevoIngreso" | "borrarIngreso" | "fijarPresupuesto" | "fijarLimite"
+ *                               | "guardarDeseo" | "borrarDeseo", ... }
  *
  * Los gastos nuevos se envían a través del mismo formulario de Google que usa
  * el atajo, así que entran por el mismo camino (Respuestas de formulario 1 → Gastos).
@@ -21,6 +22,8 @@ const HOJA_PRESUPUESTO = 'Presupuesto';
 const HOJA_INGRESOS = 'Ingresos extra';
 const HOJA_FRECUENTES = 'Frecuentes';
 const HOJA_LIMITES = 'Límites';
+const HOJA_DESEOS = 'Wishlist';
+const CABECERAS_DESEOS = ['Id', 'Nombre', 'Precio', 'Enlace', 'Nota', 'Prioridad', 'Comprado', 'Añadido'];
 const CABECERAS_FRECUENTES = ['Id', 'Concepto', 'Importe', 'Categoría', 'Método', 'Frecuencia', 'Día'];
 const PRESUPUESTO_POR_DEFECTO = 450;
 
@@ -71,6 +74,12 @@ function doPost(e) {
         return json({ ok: true });
       case 'fijarLimite':
         conBloqueo(() => fijarLimite(req));
+        return json({ ok: true });
+      case 'guardarDeseo':
+        conBloqueo(() => guardarDeseo(req));
+        return json({ ok: true });
+      case 'borrarDeseo':
+        conBloqueo(() => borrarDeseo(req));
         return json({ ok: true });
       default:
         return json({ ok: false, error: 'Acción desconocida: ' + req.action });
@@ -141,6 +150,7 @@ function leerDatos() {
     ingresos: ingresos,
     frecuentes: leerFrecuentes(),
     limites: leerLimites(),
+    deseos: leerDeseos(),
     presupuestoPorDefecto: PRESUPUESTO_POR_DEFECTO,
   };
 }
@@ -397,6 +407,72 @@ function fijarLimite(req) {
     }
   }
   if (limite !== null && limite > 0) hoja.appendRow([categoria, limite]);
+}
+
+// ---------- Wishlist ----------
+// Prioridad: "alta", "media" o "baja". Comprado: "sí" o vacío.
+
+function leerDeseos() {
+  const hoja = obtenerHoja(HOJA_DESEOS, CABECERAS_DESEOS);
+  if (hoja.getLastRow() < 2) return [];
+  return hoja.getRange(2, 1, hoja.getLastRow() - 1, CABECERAS_DESEOS.length).getValues()
+    .filter(f => String(f[0]).trim() && String(f[1]).trim())
+    .map(f => {
+      const añadido = aFecha(f[7]);
+      return {
+        id: String(f[0]),
+        nombre: String(f[1]).trim(),
+        precio: aNumero(f[2]),
+        enlace: String(f[3]).trim(),
+        nota: String(f[4]).trim(),
+        prioridad: ['alta', 'baja'].includes(String(f[5]).trim()) ? String(f[5]).trim() : 'media',
+        comprado: ['sí', 'si', 'true', 'x'].includes(String(f[6]).trim().toLowerCase()),
+        añadido: (añadido || new Date(0)).toISOString(),
+      };
+    });
+}
+
+function guardarDeseo(req) {
+  const nombre = String(req.nombre || '').trim();
+  if (!nombre) throw new Error('Falta el nombre');
+  const precio = req.precio == null || req.precio === '' ? null : aNumero(req.precio);
+  const fila = [
+    req.id ? String(req.id) : Utilities.getUuid(),
+    nombre,
+    precio === null ? '' : precio,
+    String(req.enlace || '').trim(),
+    String(req.nota || '').trim(),
+    ['alta', 'baja'].includes(req.prioridad) ? req.prioridad : 'media',
+    req.comprado ? 'sí' : '',
+    fechaISO(req.añadido) || new Date(),
+  ];
+  const hoja = obtenerHoja(HOJA_DESEOS, CABECERAS_DESEOS);
+  if (req.id && hoja.getLastRow() > 1) {
+    const ids = hoja.getRange(2, 1, hoja.getLastRow() - 1, 1).getValues();
+    for (let i = 0; i < ids.length; i++) {
+      if (String(ids[i][0]) === String(req.id)) {
+        hoja.getRange(i + 2, 1, 1, fila.length).setValues([fila]);
+        return;
+      }
+    }
+  }
+  hoja.appendRow(fila);
+}
+
+/** Fecha en formato ISO (la que envía la app), o null. */
+function fechaISO(v) {
+  if (!v) return null;
+  const d = new Date(v);
+  return isNaN(d) ? null : d;
+}
+
+function borrarDeseo(req) {
+  const hoja = obtenerHoja(HOJA_DESEOS, CABECERAS_DESEOS);
+  if (hoja.getLastRow() < 2) return;
+  const ids = hoja.getRange(2, 1, hoja.getLastRow() - 1, 1).getValues();
+  for (let i = ids.length - 1; i >= 0; i--) {
+    if (String(ids[i][0]) === String(req.id)) hoja.deleteRow(i + 2);
+  }
 }
 
 // ---------- Utilidades ----------

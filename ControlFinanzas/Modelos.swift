@@ -31,6 +31,39 @@ struct Regla: Codable, Hashable {
     let categoria: String
 }
 
+/// Algo que quieres comprarte (wishlist).
+struct Deseo: Codable, Identifiable, Hashable {
+    enum Prioridad: String, Codable, CaseIterable, Identifiable {
+        case alta, media, baja
+        var id: String { rawValue }
+        var nombre: String { rawValue.capitalized }
+        var orden: Int { self == .alta ? 0 : self == .media ? 1 : 2 }
+    }
+
+    var id: String
+    var nombre: String
+    var precio: Double?
+    var enlace: String
+    var nota: String
+    var prioridad: Prioridad
+    var comprado: Bool
+    var añadido: Date
+
+    /// Deseo vacío para el formulario de alta. Su id empieza por "nuevo-" hasta que se guarda.
+    static func nuevo() -> Deseo {
+        Deseo(id: "nuevo-\(UUID().uuidString)", nombre: "", precio: nil, enlace: "", nota: "",
+              prioridad: .media, comprado: false, añadido: Date())
+    }
+
+    var esNuevo: Bool { id.hasPrefix("nuevo-") }
+
+    var url: URL? {
+        let t = enlace.trimmingCharacters(in: .whitespaces)
+        guard !t.isEmpty else { return nil }
+        return URL(string: t.contains("://") ? t : "https://\(t)")
+    }
+}
+
 /// Tope de gasto mensual para una categoría.
 struct LimiteCategoria: Codable, Hashable {
     var categoria: String
@@ -44,6 +77,7 @@ struct DatosFinanzas: Codable {
     var ingresos: [IngresoExtra]
     var frecuentes: [Frecuente] = []
     var limites: [LimiteCategoria] = []
+    var deseos: [Deseo] = []
     var presupuestoPorDefecto: Double
 
     static let vacio = DatosFinanzas(gastos: [], reglas: [], presupuestos: [], ingresos: [], presupuestoPorDefecto: 450)
@@ -58,7 +92,7 @@ struct DatosFinanzas: Codable {
         self.presupuestoPorDefecto = presupuestoPorDefecto
     }
 
-    /// `frecuentes` y `limites` son opcionales al leer: scripts antiguos y la caché previa no lo traen.
+    /// `frecuentes`, `limites` y `deseos` son opcionales al leer: scripts antiguos y la caché previa no lo traen.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         gastos = try c.decode([Gasto].self, forKey: .gastos)
@@ -67,6 +101,7 @@ struct DatosFinanzas: Codable {
         ingresos = try c.decode([IngresoExtra].self, forKey: .ingresos)
         frecuentes = try c.decodeIfPresent([Frecuente].self, forKey: .frecuentes) ?? []
         limites = try c.decodeIfPresent([LimiteCategoria].self, forKey: .limites) ?? []
+        deseos = try c.decodeIfPresent([Deseo].self, forKey: .deseos) ?? []
         presupuestoPorDefecto = try c.decode(Double.self, forKey: .presupuestoPorDefecto)
     }
 }

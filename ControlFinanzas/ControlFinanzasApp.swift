@@ -51,7 +51,7 @@ final class Navegacion {
 }
 
 enum SeccionMac: Hashable {
-    case resumen, movimientos, sinClasificar, meses, ahorro
+    case resumen, movimientos, sinClasificar, meses, ahorro, wishlist
     case categoria(String)
     /// Gastos de un día concreto (al hacer clic en el gráfico del resumen).
     case dia(Date)
@@ -81,6 +81,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var fase
     @State private var mostrandoNuevo = false
     @State private var pestaña = 0
+    @AppStorage("seccionMas") private var seccionMas = MasView.Seccion.wishlist
 
     var body: some View {
         TabView(selection: $pestaña) {
@@ -96,8 +97,8 @@ struct ContentView: View {
             Tab("Meses", systemImage: "calendar", value: 2) {
                 MesesView().fontDesign(.rounded)
             }
-            Tab("Ajustes", systemImage: "gearshape.fill", value: 3) {
-                AjustesView().fontDesign(.rounded)
+            Tab("Más", systemImage: "ellipsis.circle.fill", value: 3) {
+                MasView(seccion: $seccionMas).fontDesign(.rounded)
             }
         }
         .sheet(isPresented: $mostrandoNuevo) {
@@ -105,7 +106,7 @@ struct ContentView: View {
         }
         .task {
             // La primera carga la hace la pantalla de arranque.
-            if !almacen.configurado { pestaña = 3 }
+            if !almacen.configurado { seccionMas = .ajustes; pestaña = 3 }
         }
         .onChange(of: fase) { _, nueva in
             if nueva == .active, almacen.configurado { Task { await almacen.recargar() } }

@@ -274,6 +274,37 @@ final class Almacen {
         await recargar()
     }
 
+    // MARK: - Wishlist
+
+    /// Pendientes primero (por prioridad y antigüedad); los comprados al final.
+    var deseos: [Deseo] {
+        datos.deseos.sorted { a, b in
+            if a.comprado != b.comprado { return !a.comprado }
+            if a.prioridad != b.prioridad { return a.prioridad.orden < b.prioridad.orden }
+            return a.añadido < b.añadido
+        }
+    }
+
+    func guardarDeseo(_ d: Deseo) async throws {
+        if modoDemo {
+            var copia = d
+            if copia.esNuevo { copia.id = UUID().uuidString }
+            datos.deseos.removeAll { $0.id == d.id }
+            datos.deseos.append(copia)
+            return
+        }
+        guard let api else { throw ErrorAPI.sinConfigurar }
+        try await api.guardarDeseo(d)
+        await recargar()
+    }
+
+    func borrarDeseo(_ d: Deseo) async throws {
+        if modoDemo { datos.deseos.removeAll { $0.id == d.id }; return }
+        guard let api else { throw ErrorAPI.sinConfigurar }
+        try await api.borrarDeseo(id: d.id)
+        await recargar()
+    }
+
     func ajustesCambiados() async {
         if !modoDemo, let cache = Self.leerCache() { datos = cache.datos } else if !modoDemo { datos = .vacio }
         await recargar()

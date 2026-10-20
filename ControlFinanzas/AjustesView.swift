@@ -9,9 +9,18 @@ struct AjustesView: View {
     @AppStorage("avisoMensual") private var avisoMensual = false
     @State private var probando = false
     @State private var resultado: (ok: Bool, texto: String)?
+    /// `false` cuando ya está dentro de una navegación (el menú "Más" del iPhone).
+    var conNavegacion = true
 
     var body: some View {
-        NavigationStack {
+        if conNavegacion {
+            NavigationStack { formulario }
+        } else {
+            formulario
+        }
+    }
+
+    private var formulario: some View {
             Form {
                 Section {
                     TextField("https://script.google.com/macros/s/…/exec", text: $url, prompt: Text("https://script.google.com/macros/s/…/exec"))
@@ -76,7 +85,6 @@ struct AjustesView: View {
             }
             .onChange(of: modoDemo) { Task { await almacen.ajustesCambiados() } }
             .onChange(of: avisoMensual) { _, activo in Task { await Avisos.configurar(activo: activo) } }
-        }
     }
 
     private func probar() async {
