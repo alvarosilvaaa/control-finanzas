@@ -32,6 +32,8 @@ struct AhorroView: View {
         let consejos = almacen.consejos
         return ScrollView {
             VStack(alignment: .leading, spacing: 32) {
+                BotonPreguntarClaude()
+
                 VStack(alignment: .leading, spacing: 4) {
                     Titulo(texto: "Consejos", detalle: "Calculados con tus gastos de \(Mes.actual.nombreMes.lowercased())")
                     if consejos.isEmpty {
