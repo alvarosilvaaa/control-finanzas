@@ -117,7 +117,7 @@ struct ResumenMensualView: View {
 
             if !r.gastos.isEmpty {
                 Section("Gastos más grandes") {
-                    ForEach(r.gastos.sorted { $0.importe > $1.importe }.prefix(5)) { FilaGasto(gasto: $0) }
+                    ForEach(r.gastos.sorted { $0.importe > $1.importe }.prefix(5)) { FilaGasto(gasto: $0, conFecha: true) }
                 }
             }
 

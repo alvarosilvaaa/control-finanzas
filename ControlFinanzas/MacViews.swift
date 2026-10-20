@@ -126,7 +126,6 @@ struct TablaGastos: View {
     @Environment(Almacen.self) private var almacen
     @Environment(Navegacion.self) private var navegacion
     @State private var seleccion = Set<Gasto.ID>()
-    @State private var orden = [KeyPathComparator(\Gasto.fecha, order: .reverse)]
     @State private var busqueda = ""
     @State private var mes: Mes? = .actual
     @State private var editando: Gasto?
@@ -147,7 +146,7 @@ struct TablaGastos: View {
             .filter(incluir)
             .filter { mes == nil || mes!.contiene($0.fecha) }
             .filter { t.isEmpty || $0.concepto.lowercased().contains(t) || $0.categoria.lowercased().contains(t) }
-            .sorted(using: orden)
+            .sorted { $0.fecha > $1.fecha }
     }
 
     private func gastos(_ ids: Set<Gasto.ID>) -> [Gasto] {
@@ -156,38 +155,30 @@ struct TablaGastos: View {
 
     var body: some View {
         let filas = filas
-        Table(filas, selection: $seleccion, sortOrder: $orden) {
-            TableColumn("Fecha", value: \.fecha) { g in
-                Text(g.fecha.formatted(.dateTime.day().month(.abbreviated).year().hour().minute()
-                    .locale(Locale(identifier: "es_ES"))))
-                    .monospacedDigit()
-            }
-            .width(min: 130, ideal: 150)
-
-            TableColumn("Concepto", value: \.concepto) { g in
-                HStack(spacing: 8) {
-                    IconoCategoria(categoria: g.categoria, concepto: g.concepto, tamaño: 24)
-                    Text(g.concepto.trimmingCharacters(in: .whitespaces))
-                    if g.pendiente { ProgressView().controlSize(.mini) }
+        // Lista al estilo de las apps de banca: filas altas y una cabecera por día con su total.
+        GeometryReader { geo in
+            List(selection: $seleccion) {
+                if filas.isEmpty {
+                    ContentUnavailableView("No hay gastos", systemImage: "tray")
+                        .listRowSeparator(.hidden)
+                }
+                ForEach(gastosPorDia(filas), id: \.dia) { grupo in
+                    Section {
+                        ForEach(grupo.gastos) { g in
+                            FilaGasto(gasto: g)
+                                .padding(.vertical, 6)
+                                .tag(g.id)
+                                .listRowSeparator(.hidden)
+                        }
+                    } header: {
+                        EncabezadoDia(dia: grupo.dia, total: grupo.gastos.reduce(0) { $0 + $1.importe })
+                    }
                 }
             }
-            .width(min: 180, ideal: 260)
-
-            TableColumn("Categoría", value: \.categoria) { g in
-                Text(g.categoria).foregroundStyle(g.categoria == "Sin clasificar" ? .secondary : .primary)
-            }
-            .width(min: 110, ideal: 140)
-
-            TableColumn("Método", value: \.metodo) { g in Text(Formato.metodo(g.metodo)) }
-                .width(min: 70, ideal: 90)
-
-            TableColumn("Importe", value: \.importe) { g in
-                Text(Formato.eur(g.importe)).monospacedDigit().frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .width(min: 80, ideal: 100)
+            .listStyle(.plain)
+            // En ventanas anchas, la lista queda centrada con un ancho cómodo de leer.
+            .contentMargins(.horizontal, max(16, (geo.size.width - 860) / 2), for: .scrollContent)
         }
-        .tableStyle(.inset)
-        .alternatingRowBackgrounds(.disabled)
         .scrollContentBackground(.hidden)
         .background(Color.fondo)
         .contextMenu(forSelectionType: Gasto.ID.self) { ids in

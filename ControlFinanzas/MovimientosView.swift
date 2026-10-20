@@ -75,16 +75,17 @@ struct MovimientosView: View {
     }
 }
 
-/// Lista de gastos agrupada por mes, sin cajas ni separadores. Al tocar uno se abre para editarlo.
+/// Gastos agrupados por día (más reciente primero), con el total de cada día.
+func gastosPorDia(_ gastos: [Gasto]) -> [(dia: Date, gastos: [Gasto])] {
+    Dictionary(grouping: gastos) { Calendar.current.startOfDay(for: $0.fecha) }
+        .map { ($0.key, $0.value.sorted { $0.fecha > $1.fecha }) }
+        .sorted { $0.0 > $1.0 }
+}
+
+/// Lista de gastos por día, sin cajas ni separadores. Al tocar uno se abre para editarlo.
 struct ListaGastos: View {
     let gastos: [Gasto]
     @State private var editando: Gasto?
-
-    private var porMes: [(mes: Mes, gastos: [Gasto])] {
-        Dictionary(grouping: gastos) { Mes($0.fecha) }
-            .map { ($0.key, $0.value.sorted { $0.fecha > $1.fecha }) }
-            .sorted { $0.0 > $1.0 }
-    }
 
     var body: some View {
         List {
@@ -93,7 +94,7 @@ struct ListaGastos: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
             }
-            ForEach(porMes, id: \.mes) { grupo in
+            ForEach(gastosPorDia(gastos), id: \.dia) { grupo in
                 Section {
                     ForEach(grupo.gastos) { g in
                         Button { editando = g } label: { FilaGasto(gasto: g) }
@@ -104,38 +105,52 @@ struct ListaGastos: View {
                             .listRowInsets(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
                     }
                 } header: {
-                    EncabezadoMes(mes: grupo.mes, total: grupo.gastos.reduce(0) { $0 + $1.importe })
+                    EncabezadoDia(dia: grupo.dia, total: grupo.gastos.reduce(0) { $0 + $1.importe })
                 }
             }
         }
         .listStyle(.plain)
+        #if os(iOS)
+        .listSectionSpacing(4)
+        #endif
         .estiloLimpio()
         .sheet(item: $editando) { EditarGastoView(gasto: $0) }
     }
 }
 
-/// "octubre                356,54 €", en negrita y sin adornos.
-struct EncabezadoMes: View {
-    let mes: Mes
+/// "Hoy                20,50 €" · "martes, 14 oct        19,60 €"
+struct EncabezadoDia: View {
+    let dia: Date
     let total: Double
+
+    private var titulo: String {
+        let cal = Calendar.current
+        if cal.isDateInToday(dia) { return "Hoy" }
+        if cal.isDateInYesterday(dia) { return "Ayer" }
+        let mismoAño = cal.component(.year, from: dia) == cal.component(.year, from: Date())
+        var estilo = Date.FormatStyle.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "es_ES"))
+        if !mismoAño { estilo = estilo.year() }
+        let texto = dia.formatted(estilo)
+        return texto.prefix(1).uppercased() + texto.dropFirst()
+    }
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(mes == .actual || mes.año == Mes.actual.año ? mes.nombreMes : mes.nombre.lowercased())
-                .font(.title3.bold())
-                .foregroundStyle(Tema.tinta)
+            Text(titulo).font(.headline).foregroundStyle(Tema.tinta)
             Spacer()
-            Text(Formato.eur(total)).font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+            Text(Formato.eur(total)).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary).monospacedDigit()
         }
         .textCase(nil)
-        .padding(.top, 18)
-        .padding(.bottom, 4)
+        .padding(.top, 16)
+        .padding(.bottom, 2)
         .padding(.horizontal, 4)
     }
 }
 
 struct FilaGasto: View {
     let gasto: Gasto
+    /// En listas agrupadas por día basta con la hora; en el resto se muestra también la fecha.
+    var conFecha = false
 
     var body: some View {
         HStack(spacing: 14) {
@@ -152,9 +167,11 @@ struct FilaGasto: View {
         .contentShape(Rectangle())
     }
 
-    /// "20 oct · Limpieza · Bizum"
+    /// "15:45 · Limpieza · Bizum" (o "20 oct · Limpieza · Bizum" con fecha)
     private var detalle: String {
-        let fecha = gasto.fecha.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "es_ES")))
+        let fecha = conFecha
+            ? gasto.fecha.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "es_ES")))
+            : gasto.fecha.formatted(Formato.hora)
         return [fecha, gasto.categoria == "Sin clasificar" ? "Sin clasificar" : gasto.categoria, Formato.metodo(gasto.metodo)]
             .joined(separator: " · ")
     }
