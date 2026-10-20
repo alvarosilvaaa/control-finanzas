@@ -129,6 +129,8 @@ struct TablaGastos: View {
     @State private var busqueda = ""
     @State private var mes: Mes? = .actual
     @State private var orden = OrdenGastos.recientes
+    @State private var categoria: String?
+    @State private var metodo: String?
     @State private var editando: Gasto?
     @State private var aBorrar: [Gasto] = []
     @State private var trabajando = false
@@ -146,6 +148,8 @@ struct TablaGastos: View {
         return almacen.datos.gastos
             .filter(incluir)
             .filter { mes == nil || mes!.contiene($0.fecha) }
+            .filter { categoria == nil || $0.categoria == categoria }
+            .filter { metodo == nil || Formato.metodo($0.metodo) == metodo }
             .filter { t.isEmpty || $0.concepto.lowercased().contains(t) || $0.categoria.lowercased().contains(t) }
             .ordenados(orden)
     }
@@ -206,15 +210,13 @@ struct TablaGastos: View {
         .navigationSubtitle("\(filas.count) gastos · \(Formato.eur(filas.reduce(0) { $0 + $1.importe }))")
         .toolbar {
             ToolbarItem {
+                let activo = categoria != nil || metodo != nil || orden != .recientes
                 Menu {
-                    Picker("Ordenar", selection: $orden) {
-                        ForEach(OrdenGastos.allCases) { Label($0.rawValue, systemImage: $0.icono).tag($0) }
-                    }
-                    .pickerStyle(.inline)
+                    ContenidoFiltros(orden: $orden, categoria: $categoria, metodo: $metodo)
                 } label: {
-                    Label("Ordenar", systemImage: "arrow.up.arrow.down")
+                    Label("Filtros", systemImage: ContenidoFiltros.icono(activo: activo))
                 }
-                .help("Ordenar: \(orden.rawValue.lowercased())")
+                .help(activo ? "Filtros activos" : "Ordenar y filtrar")
             }
             if mostrarFiltroMes {
                 ToolbarItem {

@@ -52,34 +52,9 @@ struct MovimientosView: View {
             .cristal(Capsule())
 
             Menu {
-                // Orden arriba, discreto; categoría y método como submenús para que el menú sea corto.
-                Picker("Ordenar", selection: $orden) {
-                    ForEach(OrdenGastos.allCases) { Label($0.rawValue, systemImage: $0.icono).tag($0) }
-                }
-                .pickerStyle(.inline)
-                Picker(selection: $categoria) {
-                    Text("Todas").tag(String?.none)
-                    ForEach(almacen.categorias + ["Sin clasificar"], id: \.self) { Text($0).tag(String?.some($0)) }
-                } label: {
-                    Label("Categoría", systemImage: "square.grid.2x2")
-                    Text(categoria ?? "Todas")
-                }
-                .pickerStyle(.menu)
-                Picker(selection: $metodo) {
-                    Text("Todos").tag(String?.none)
-                    ForEach(["Tarjeta", "Bizum", "Efectivo"], id: \.self) { Text($0).tag(String?.some($0)) }
-                } label: {
-                    Label("Método", systemImage: "creditcard")
-                    Text(metodo ?? "Todos")
-                }
-                .pickerStyle(.menu)
-                if categoria != nil || metodo != nil || orden != .recientes {
-                    Divider()
-                    Button("Quitar filtros", role: .destructive) { categoria = nil; metodo = nil; orden = .recientes }
-                }
+                ContenidoFiltros(orden: $orden, categoria: $categoria, metodo: $metodo)
             } label: {
-                Image(systemName: categoria == nil && metodo == nil && orden == .recientes
-                      ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
+                Image(systemName: ContenidoFiltros.icono(activo: categoria != nil || metodo != nil || orden != .recientes))
                     .font(.body.weight(.semibold))
                     .foregroundStyle(Tema.tinta)
                     .frame(width: 48, height: 48)
@@ -88,6 +63,45 @@ struct MovimientosView: View {
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 8)
+    }
+}
+
+/// Contenido del menú de filtros, igual en iPhone y Mac: orden arriba, categoría y método como submenús.
+struct ContenidoFiltros: View {
+    @Binding var orden: OrdenGastos
+    @Binding var categoria: String?
+    @Binding var metodo: String?
+    @Environment(Almacen.self) private var almacen
+
+    static func icono(activo: Bool) -> String {
+        activo ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease"
+    }
+
+    var body: some View {
+        Picker("Ordenar", selection: $orden) {
+            ForEach(OrdenGastos.allCases) { Label($0.rawValue, systemImage: $0.icono).tag($0) }
+        }
+        .pickerStyle(.inline)
+        Picker(selection: $categoria) {
+            Text("Todas").tag(String?.none)
+            ForEach(almacen.categorias + ["Sin clasificar"], id: \.self) { Text($0).tag(String?.some($0)) }
+        } label: {
+            Label("Categoría", systemImage: "square.grid.2x2")
+            Text(categoria ?? "Todas")
+        }
+        .pickerStyle(.menu)
+        Picker(selection: $metodo) {
+            Text("Todos").tag(String?.none)
+            ForEach(["Tarjeta", "Bizum", "Efectivo"], id: \.self) { Text($0).tag(String?.some($0)) }
+        } label: {
+            Label("Método", systemImage: "creditcard")
+            Text(metodo ?? "Todos")
+        }
+        .pickerStyle(.menu)
+        if categoria != nil || metodo != nil || orden != .recientes {
+            Divider()
+            Button("Quitar filtros", role: .destructive) { categoria = nil; metodo = nil; orden = .recientes }
+        }
     }
 }
 
