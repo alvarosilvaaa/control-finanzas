@@ -74,6 +74,17 @@ struct MacContentView: View {
                 MesesView()
             case .categoria(let c):
                 TablaGastos(titulo: c) { $0.categoria == c }
+            case .dia(let fecha):
+                TablaGastos(titulo: SeccionMac.titulo(dia: fecha), mostrarFiltroMes: false) {
+                    Calendar.current.isDate($0.fecha, inSameDayAs: fecha)
+                }
+                .id(fecha)
+                .toolbar {
+                    ToolbarItem(placement: .navigation) {
+                        Button { navegacion.seccion = .resumen } label: { Label("Volver al resumen", systemImage: "chevron.left") }
+                            .help("Volver al resumen")
+                    }
+                }
             }
         }
     }

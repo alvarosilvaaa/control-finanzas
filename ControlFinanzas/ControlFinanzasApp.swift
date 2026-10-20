@@ -46,11 +46,21 @@ struct ControlFinanzasApp: App {
 final class Navegacion {
     var seccion: SeccionMac? = .resumen
     var mostrandoNuevo = false
+    /// Mes que se ve en el resumen; se conserva al ir a un día y volver.
+    var mesResumen = Mes.actual
 }
 
 enum SeccionMac: Hashable {
     case resumen, movimientos, sinClasificar, meses
     case categoria(String)
+    /// Gastos de un día concreto (al hacer clic en el gráfico del resumen).
+    case dia(Date)
+
+    /// "Martes, 14 de octubre"
+    static func titulo(dia: Date) -> String {
+        let texto = dia.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "es_ES")))
+        return texto.prefix(1).uppercased() + texto.dropFirst()
+    }
 }
 
 struct ContentView: View {

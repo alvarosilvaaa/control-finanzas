@@ -6,7 +6,10 @@ import Charts
 struct MacResumenView: View {
     @Environment(Almacen.self) private var almacen
     @Environment(Navegacion.self) private var navegacion
-    @State private var mes = Mes.actual
+    private var mes: Mes {
+        get { navegacion.mesResumen }
+        nonmutating set { navegacion.mesResumen = newValue }
+    }
     @State private var editandoPresupuesto = false
     @State private var editando: Gasto?
 
@@ -182,7 +185,17 @@ private struct Indicador<Detalle: View>: View {
 
 private struct GraficoAcumuladoMac: View {
     let resumen: ResumenMes
+    @Environment(Navegacion.self) private var navegacion
     @State private var diaSeleccionado: Int?
+
+    /// Día del mes bajo el puntero, o `nil` si está fuera del gráfico o en un día que aún no ha llegado.
+    private func dia(en x: CGFloat, _ proxy: ChartProxy, _ geo: GeometryProxy) -> Int? {
+        guard let marco = proxy.plotFrame else { return nil }
+        let origen = geo[marco].origin.x
+        guard let valor = proxy.value(atX: x - origen, as: Double.self) else { return nil }
+        let d = Int(valor.rounded())
+        return resumen.acumuladoPorDia.contains { $0.dia == d } ? d : nil
+    }
 
     var body: some View {
         let r = resumen
@@ -219,6 +232,10 @@ private struct GraficoAcumuladoMac: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Día \(punto.dia)").font(.caption).foregroundStyle(.secondary)
                             Text(Formato.eur(punto.total)).font(.callout.bold())
+                            let delDia = r.gastos.filter { Calendar.current.component(.day, from: $0.fecha) == punto.dia }
+                            Text(delDia.isEmpty ? "Sin gastos ese día"
+                                 : "\(Formato.eur(delDia.reduce(0) { $0 + $1.importe })) ese día · \(delDia.count) \(delDia.count == 1 ? "gasto" : "gastos")")
+                                .font(.caption2).foregroundStyle(.secondary)
                             let diferencia = punto.total - ritmo * Double(punto.dia)
                             Text(diferencia > 0 ? "\(Formato.eur(diferencia)) por encima del ritmo"
                                                 : "\(Formato.eur(-diferencia)) por debajo del ritmo")
@@ -230,7 +247,24 @@ private struct GraficoAcumuladoMac: View {
             }
         }
         .chartXScale(domain: 1...r.mes.numeroDeDias)
-        .chartXSelection(value: $diaSeleccionado)
+        // Pasar el ratón muestra el día; hacer clic abre sus gastos.
+        .chartOverlay { proxy in
+            GeometryReader { geo in
+                Rectangle().fill(.clear).contentShape(Rectangle())
+                    .onContinuousHover { fase in
+                        switch fase {
+                        case .active(let p): diaSeleccionado = dia(en: p.x, proxy, geo)
+                        case .ended: diaSeleccionado = nil
+                        }
+                    }
+                    .onTapGesture { p in
+                        guard let d = dia(en: p.x, proxy, geo),
+                              let fecha = Calendar.current.date(byAdding: .day, value: d - 1, to: r.mes.inicio) else { return }
+                        navegacion.seccion = .dia(fecha)
+                    }
+                    .pointerStyle(diaSeleccionado == nil ? .default : .link)
+            }
+        }
         .chartYAxis {
             AxisMarks { v in
                 AxisGridLine()
@@ -243,7 +277,7 @@ private struct GraficoAcumuladoMac: View {
             Label("Gasto real", systemImage: "line.diagonal").foregroundStyle(Tema.tinta)
             Label("Ritmo para llegar justo al presupuesto", systemImage: "line.diagonal").foregroundStyle(.secondary)
             Spacer()
-            Text("Pasa el ratón por el gráfico para ver cada día").foregroundStyle(.tertiary)
+            Text("Haz clic en un día para ver sus gastos").foregroundStyle(.tertiary)
         }
         .font(.caption)
     }
