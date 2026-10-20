@@ -47,6 +47,7 @@ struct MacContentView: View {
             NuevoMovimientoView().fontDesign(.rounded)
         }
         .task {
+            // En Mac la app abre rápido: se actualiza sin pantalla de arranque.
             if almacen.configurado { await almacen.recargar() }
         }
     }

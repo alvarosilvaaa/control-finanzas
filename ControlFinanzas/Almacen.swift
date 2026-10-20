@@ -84,7 +84,18 @@ final class Almacen {
 
     // MARK: - Acciones
 
+    /// Si ya hay una recarga en marcha, espera a esa en vez de lanzar otra.
     func recargar() async {
+        if let enCurso = recargaEnCurso { return await enCurso.value }
+        let tarea = Task { await descargarDatos() }
+        recargaEnCurso = tarea
+        await tarea.value
+        recargaEnCurso = nil
+    }
+
+    @ObservationIgnored private var recargaEnCurso: Task<Void, Never>?
+
+    private func descargarDatos() async {
         if modoDemo {
             datos = Demo.datos()
             ultimaActualizacion = Date()

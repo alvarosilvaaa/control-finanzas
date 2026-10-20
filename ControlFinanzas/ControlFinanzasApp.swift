@@ -33,7 +33,7 @@ struct ControlFinanzasApp: App {
         }
         #else
         WindowGroup {
-            ContentView()
+            ConArranque { ContentView() }
                 .environment(almacen)
                 .fontDesign(.rounded)
         }
@@ -91,7 +91,8 @@ struct ContentView: View {
             NuevoMovimientoView().fontDesign(.rounded)
         }
         .task {
-            if almacen.configurado { await almacen.recargar() } else { pestaña = 3 }
+            // La primera carga la hace la pantalla de arranque.
+            if !almacen.configurado { pestaña = 3 }
         }
         .onChange(of: fase) { _, nueva in
             if nueva == .active, almacen.configurado { Task { await almacen.recargar() } }
