@@ -19,6 +19,8 @@ const HOJA_RESPUESTAS = 'Respuestas de formulario 1';
 const HOJA_REGLAS = 'Reglas';
 const HOJA_PRESUPUESTO = 'Presupuesto';
 const HOJA_INGRESOS = 'Ingresos extra';
+const HOJA_FRECUENTES = 'Frecuentes';
+const CABECERAS_FRECUENTES = ['Id', 'Concepto', 'Importe', 'Categoría', 'Método', 'Frecuencia', 'Día'];
 const PRESUPUESTO_POR_DEFECTO = 450;
 
 function doGet() {
@@ -56,6 +58,12 @@ function doPost(e) {
         return json({ ok: true });
       case 'borrarIngreso':
         conBloqueo(() => borrarIngreso(req));
+        return json({ ok: true });
+      case 'guardarFrecuente':
+        conBloqueo(() => guardarFrecuente(req));
+        return json({ ok: true });
+      case 'borrarFrecuente':
+        conBloqueo(() => borrarFrecuente(req));
         return json({ ok: true });
       case 'fijarPresupuesto':
         conBloqueo(() => fijarPresupuesto(req));
@@ -127,6 +135,7 @@ function leerDatos() {
     reglas: reglas,
     presupuestos: presupuestos,
     ingresos: ingresos,
+    frecuentes: leerFrecuentes(),
     presupuestoPorDefecto: PRESUPUESTO_POR_DEFECTO,
   };
 }
@@ -278,6 +287,60 @@ function borrarIngreso(req) {
   const hoja = obtenerHoja(HOJA_INGRESOS, ['Fecha', 'Importe', 'Concepto', 'Id']);
   if (hoja.getLastRow() < 2) return;
   const ids = hoja.getRange(2, 4, hoja.getLastRow() - 1, 1).getValues();
+  for (let i = ids.length - 1; i >= 0; i--) {
+    if (String(ids[i][0]) === String(req.id)) hoja.deleteRow(i + 2);
+  }
+}
+
+// ---------- Gastos frecuentes ----------
+// Frecuencia: "mensual" (Día = día del mes, 1-31), "semanal" (Día = 1 lunes … 7 domingo) o "ninguna".
+
+function leerFrecuentes() {
+  const hoja = obtenerHoja(HOJA_FRECUENTES, CABECERAS_FRECUENTES);
+  if (hoja.getLastRow() < 2) return [];
+  return hoja.getRange(2, 1, hoja.getLastRow() - 1, 7).getValues()
+    .filter(f => String(f[0]).trim() && String(f[1]).trim())
+    .map(f => ({
+      id: String(f[0]),
+      concepto: String(f[1]).trim(),
+      importe: aNumero(f[2]),
+      categoria: String(f[3]).trim() || 'Sin clasificar',
+      metodo: String(f[4]).trim(),
+      frecuencia: ['mensual', 'semanal'].includes(String(f[5]).trim()) ? String(f[5]).trim() : 'ninguna',
+      dia: Number(f[6]) || null,
+    }));
+}
+
+function guardarFrecuente(req) {
+  const concepto = String(req.concepto || '').trim();
+  if (!concepto) throw new Error('Falta el concepto');
+  const importe = req.importe == null || req.importe === '' ? '' : aNumero(req.importe);
+  const fila = [
+    req.id ? String(req.id) : Utilities.getUuid(),
+    concepto,
+    importe === null ? '' : importe,
+    String(req.categoria || 'Sin clasificar').trim(),
+    String(req.metodo || '').trim(),
+    ['mensual', 'semanal'].includes(req.frecuencia) ? req.frecuencia : 'ninguna',
+    Number(req.dia) || '',
+  ];
+  const hoja = obtenerHoja(HOJA_FRECUENTES, CABECERAS_FRECUENTES);
+  if (req.id && hoja.getLastRow() > 1) {
+    const ids = hoja.getRange(2, 1, hoja.getLastRow() - 1, 1).getValues();
+    for (let i = 0; i < ids.length; i++) {
+      if (String(ids[i][0]) === String(req.id)) {
+        hoja.getRange(i + 2, 1, 1, fila.length).setValues([fila]);
+        return;
+      }
+    }
+  }
+  hoja.appendRow(fila);
+}
+
+function borrarFrecuente(req) {
+  const hoja = obtenerHoja(HOJA_FRECUENTES, CABECERAS_FRECUENTES);
+  if (hoja.getLastRow() < 2) return;
+  const ids = hoja.getRange(2, 1, hoja.getLastRow() - 1, 1).getValues();
   for (let i = ids.length - 1; i >= 0; i--) {
     if (String(ids[i][0]) === String(req.id)) hoja.deleteRow(i + 2);
   }

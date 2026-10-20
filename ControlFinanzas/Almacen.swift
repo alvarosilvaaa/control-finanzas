@@ -172,6 +172,40 @@ final class Almacen {
         }
     }
 
+    // MARK: Gastos frecuentes
+
+    /// Frecuentes guardados, primero los que tocan y aún no se han registrado.
+    var frecuentes: [Frecuente] {
+        datos.frecuentes.sorted { a, b in
+            let pa = a.pendiente(en: datos.gastos), pb = b.pendiente(en: datos.gastos)
+            return pa != pb ? pa : a.concepto.localizedCompare(b.concepto) == .orderedAscending
+        }
+    }
+
+    /// Conceptos que se repiten en el historial y aún no son frecuentes.
+    var sugerenciasFrecuentes: [Frecuente] { Frecuente.sugerencias(gastos: datos.gastos, existentes: datos.frecuentes) }
+
+    func guardarFrecuente(_ f: Frecuente) async throws {
+        if !modoDemo {
+            guard let api else { throw ErrorAPI.sinConfigurar }
+            try await api.guardarFrecuente(f)
+            await recargar()
+        } else {
+            datos.frecuentes.removeAll { $0.id == f.id }
+            datos.frecuentes.append(f)
+        }
+    }
+
+    func borrarFrecuente(_ f: Frecuente) async throws {
+        if !modoDemo {
+            guard let api else { throw ErrorAPI.sinConfigurar }
+            try await api.borrarFrecuente(id: f.id)
+            await recargar()
+        } else {
+            datos.frecuentes.removeAll { $0.id == f.id }
+        }
+    }
+
     var sinClasificar: [Gasto] {
         datos.gastos.filter { $0.categoria == "Sin clasificar" && !$0.pendiente }.sorted { $0.fecha > $1.fecha }
     }

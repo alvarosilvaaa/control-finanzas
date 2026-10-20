@@ -18,7 +18,8 @@ struct PresupuestoView: View {
                     HStack {
                         Text("Base mensual")
                         Spacer()
-                        TextField("450", text: $baseTexto)
+                        TextField("450", text: $baseTexto, prompt: Text("450"))
+                            .labelsHidden()
                             .tecladoDecimal()
                             .multilineTextAlignment(.trailing)
                             .font(.body.weight(.semibold))
@@ -126,8 +127,10 @@ private struct NuevoIngresoView: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Importe", text: $importeTexto).tecladoDecimal()
-                TextField("Concepto", text: $concepto)
+                TextField("Importe", text: $importeTexto, prompt: Text("Importe"))
+                    .labelsHidden().tecladoDecimal()
+                TextField("Concepto", text: $concepto, prompt: Text("Concepto"))
+                    .labelsHidden()
                 DatePicker("Fecha", selection: $fecha, in: mes.inicio...min(mes.fin.addingTimeInterval(-1), Date()),
                            displayedComponents: .date)
             }

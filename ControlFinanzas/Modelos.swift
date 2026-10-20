@@ -36,9 +36,31 @@ struct DatosFinanzas: Codable {
     var reglas: [Regla]
     var presupuestos: [PresupuestoMes]
     var ingresos: [IngresoExtra]
+    var frecuentes: [Frecuente] = []
     var presupuestoPorDefecto: Double
 
     static let vacio = DatosFinanzas(gastos: [], reglas: [], presupuestos: [], ingresos: [], presupuestoPorDefecto: 450)
+
+    init(gastos: [Gasto], reglas: [Regla], presupuestos: [PresupuestoMes], ingresos: [IngresoExtra],
+         frecuentes: [Frecuente] = [], presupuestoPorDefecto: Double) {
+        self.gastos = gastos
+        self.reglas = reglas
+        self.presupuestos = presupuestos
+        self.ingresos = ingresos
+        self.frecuentes = frecuentes
+        self.presupuestoPorDefecto = presupuestoPorDefecto
+    }
+
+    /// `frecuentes` es opcional al leer: scripts antiguos y la caché previa no lo traen.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        gastos = try c.decode([Gasto].self, forKey: .gastos)
+        reglas = try c.decode([Regla].self, forKey: .reglas)
+        presupuestos = try c.decode([PresupuestoMes].self, forKey: .presupuestos)
+        ingresos = try c.decode([IngresoExtra].self, forKey: .ingresos)
+        frecuentes = try c.decodeIfPresent([Frecuente].self, forKey: .frecuentes) ?? []
+        presupuestoPorDefecto = try c.decode(Double.self, forKey: .presupuestoPorDefecto)
+    }
 }
 
 /// Identifica un mes natural, p. ej. octubre de 2026.

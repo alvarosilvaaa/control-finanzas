@@ -14,7 +14,8 @@ struct AjustesView: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("https://script.google.com/macros/s/…/exec", text: $url)
+                    TextField("https://script.google.com/macros/s/…/exec", text: $url, prompt: Text("https://script.google.com/macros/s/…/exec"))
+                        .labelsHidden()
                         .submitLabel(.done)
                         .tecladoURL()
                         .autocorrectionDisabled()

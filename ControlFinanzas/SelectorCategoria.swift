@@ -36,7 +36,8 @@ struct SelectorCategoria: View {
             .padding(.vertical, 4)
 
             if creando {
-                TextField("Nombre de la categoría", text: $nueva)
+                TextField("Nombre de la categoría", text: $nueva, prompt: Text("Nombre de la categoría"))
+                    .labelsHidden()
                     .focused($enfocado)
                     .onChange(of: nueva) { _, valor in categoria = valor.trimmingCharacters(in: .whitespaces) }
             }

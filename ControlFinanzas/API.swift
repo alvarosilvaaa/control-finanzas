@@ -58,6 +58,19 @@ struct API {
         return f.string(from: fecha)
     }
 
+    func guardarFrecuente(_ f: Frecuente) async throws {
+        var cuerpo: [String: Any] = ["action": "guardarFrecuente", "concepto": f.concepto, "categoria": f.categoria,
+                                     "metodo": f.metodo, "frecuencia": f.frecuencia.rawValue]
+        if !f.id.hasPrefix("nuevo-") { cuerpo["id"] = f.id }
+        if let importe = f.importe { cuerpo["importe"] = importe }
+        if let dia = f.dia { cuerpo["dia"] = dia }
+        try await enviar(cuerpo)
+    }
+
+    func borrarFrecuente(id: String) async throws {
+        try await enviar(["action": "borrarFrecuente", "id": id])
+    }
+
     func nuevoIngreso(importe: Double, concepto: String, fecha: Date) async throws {
         try await enviar(["action": "nuevoIngreso", "importe": importe, "concepto": concepto,
                           "fecha": ISO8601DateFormatter().string(from: fecha)])

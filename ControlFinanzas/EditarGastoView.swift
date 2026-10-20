@@ -71,7 +71,9 @@ struct EditarGastoView: View {
             Form {
                 Section {
                     HStack(alignment: .firstTextBaseline) {
-                        TextField("0,00", text: $importeTexto)
+                        TextField("0,00", text: $importeTexto, prompt: Text("0,00"))
+                            .labelsHidden()
+                            .textFieldStyle(.plain)
                             .tecladoDecimal()
                             .font(.system(size: 44, weight: .bold, design: .rounded))
                             .multilineTextAlignment(.center)
@@ -81,7 +83,8 @@ struct EditarGastoView: View {
                 }
 
                 Section {
-                    TextField("Concepto", text: $concepto)
+                    TextField("Concepto", text: $concepto, prompt: Text("Concepto"))
+                        .labelsHidden()
                     DatePicker("Fecha", selection: $fecha, in: ...Date())
                 }
 
@@ -92,7 +95,8 @@ struct EditarGastoView: View {
                 Section {
                     Toggle("Clasificar siempre así", isOn: $crearRegla)
                     if crearRegla {
-                        TextField("Texto que debe contener", text: $palabraRegla)
+                        TextField("Texto que debe contener", text: $palabraRegla, prompt: Text("Texto que debe contener"))
+                            .labelsHidden()
                             .sinMayusculas()
                     }
                 } footer: {

@@ -29,6 +29,7 @@ struct NuevoMovimientoView: View {
     /// `nil` mientras no se toque: el gasto se guarda con la hora del momento de guardar.
     @State private var fechaGasto: Date?
     @State private var guardando = false
+    @State private var gestionandoFrecuentes = false
     @State private var error: String?
     @FocusState private var campo: Campo?
 
@@ -62,23 +63,46 @@ struct NuevoMovimientoView: View {
                     .listRowInsets(EdgeInsets())
                 }
 
+                if tipo == .gasto {
+                    Section {
+                        FilaFrecuentes { usar($0) }
+                    } header: {
+                        HStack {
+                            Text("Frecuentes")
+                            Spacer()
+                            Button("Gestionar") { gestionandoFrecuentes = true }
+                                .font(.footnote)
+                                .textCase(nil)
+                        }
+                    }
+                }
+
                 Section {
-                    HStack(alignment: .firstTextBaseline) {
-                        TextField("0,00", text: $importeTexto)
+                    // Importe y símbolo € juntos y centrados.
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Spacer(minLength: 0)
+                        TextField("0,00", text: $importeTexto, prompt: Text("0,00"))
+                            .labelsHidden()
+                            .textFieldStyle(.plain)
                             .tecladoDecimal()
                             .font(.system(size: 48, weight: .bold, design: .rounded))
-                            .multilineTextAlignment(.center)
+                            .multilineTextAlignment(.trailing)
+                            .fixedSize()
                             .focused($campo, equals: .importe)
                         Text("€").font(.system(size: 32, weight: .semibold, design: .rounded)).foregroundStyle(.secondary)
+                        Spacer(minLength: 0)
                     }
                     .padding(.vertical, 8)
+                    .contentShape(Rectangle())
+                    .onTapGesture { campo = .importe }
                 }
 
                 if tipo == .gasto {
                     seccionGasto
                 } else {
                     Section {
-                        TextField("Concepto (p. ej. Propina)", text: $concepto)
+                        TextField("Concepto (p. ej. Propina)", text: $concepto, prompt: Text("Concepto (p. ej. Propina)"))
+                            .labelsHidden()
                         DatePicker("Fecha", selection: $fechaIngreso, displayedComponents: .date)
                     } footer: {
                         Text("Se suma al presupuesto del mes de esa fecha.")
@@ -96,6 +120,7 @@ struct NuevoMovimientoView: View {
                 }
             }
             .onAppear { campo = .importe }
+            .sheet(isPresented: $gestionandoFrecuentes) { GestionFrecuentesView() }
             .interactiveDismissDisabled(guardando)
             .alertaError($error)
             .hojaMac()
@@ -105,7 +130,8 @@ struct NuevoMovimientoView: View {
 
     @ViewBuilder private var seccionGasto: some View {
         Section("Concepto") {
-            TextField("¿En qué lo has gastado?", text: $concepto)
+            TextField("¿En qué lo has gastado?", text: $concepto, prompt: Text("¿En qué lo has gastado?"))
+                .labelsHidden()
                 .focused($campo, equals: .concepto)
                 .submitLabel(.done)
             let sugerencias = almacen.sugerencias(para: concepto)
@@ -153,6 +179,15 @@ struct NuevoMovimientoView: View {
             }
             .pickerStyle(.segmented)
         }
+    }
+
+    /// Rellena el formulario con un gasto frecuente.
+    private func usar(_ f: Frecuente) {
+        if let importe = f.importe { importeTexto = PresupuestoView.texto(importe) }
+        concepto = f.concepto
+        if f.categoria != "Sin clasificar" { categoria = f.categoria }
+        if let m = Metodo(rawValue: Formato.metodo(f.metodo)) { metodo = m }
+        campo = nil
     }
 
     /// Mismo día que hoy desplazado `dias`, a la hora actual (así queda dentro de ese día).
