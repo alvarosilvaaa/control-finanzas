@@ -3,7 +3,7 @@
  *
  * La app habla con este script mediante peticiones POST con un cuerpo JSON:
  *   { "token": "...", "action": "datos" | "nuevoGasto" | "editarGasto" | "borrarGasto" | "nuevaRegla"
- *                               | "nuevoIngreso" | "borrarIngreso" | "fijarPresupuesto", ... }
+ *                               | "nuevoIngreso" | "borrarIngreso" | "fijarPresupuesto" | "fijarLimite", ... }
  *
  * Los gastos nuevos se envían a través del mismo formulario de Google que usa
  * el atajo, así que entran por el mismo camino (Respuestas de formulario 1 → Gastos).
@@ -20,6 +20,7 @@ const HOJA_REGLAS = 'Reglas';
 const HOJA_PRESUPUESTO = 'Presupuesto';
 const HOJA_INGRESOS = 'Ingresos extra';
 const HOJA_FRECUENTES = 'Frecuentes';
+const HOJA_LIMITES = 'Límites';
 const CABECERAS_FRECUENTES = ['Id', 'Concepto', 'Importe', 'Categoría', 'Método', 'Frecuencia', 'Día'];
 const PRESUPUESTO_POR_DEFECTO = 450;
 
@@ -67,6 +68,9 @@ function doPost(e) {
         return json({ ok: true });
       case 'fijarPresupuesto':
         conBloqueo(() => fijarPresupuesto(req));
+        return json({ ok: true });
+      case 'fijarLimite':
+        conBloqueo(() => fijarLimite(req));
         return json({ ok: true });
       default:
         return json({ ok: false, error: 'Acción desconocida: ' + req.action });
@@ -136,6 +140,7 @@ function leerDatos() {
     presupuestos: presupuestos,
     ingresos: ingresos,
     frecuentes: leerFrecuentes(),
+    limites: leerLimites(),
     presupuestoPorDefecto: PRESUPUESTO_POR_DEFECTO,
   };
 }
@@ -362,6 +367,36 @@ function fijarPresupuesto(req) {
     }
   }
   hoja.appendRow([mes, base]);
+}
+
+// ---------- Límites por categoría ----------
+
+function leerLimites() {
+  const hoja = obtenerHoja(HOJA_LIMITES, ['Categoría', 'Límite mensual']);
+  if (hoja.getLastRow() < 2) return [];
+  return hoja.getRange(2, 1, hoja.getLastRow() - 1, 2).getValues()
+    .map(f => ({ categoria: String(f[0]).trim(), limite: aNumero(f[1]) }))
+    .filter(l => l.categoria && l.limite !== null && l.limite > 0);
+}
+
+/** Fija el límite mensual de una categoría. Sin límite (o 0) lo quita. */
+function fijarLimite(req) {
+  const categoria = String(req.categoria || '').trim();
+  if (!categoria) throw new Error('Falta la categoría');
+  const limite = req.limite == null ? null : aNumero(req.limite);
+  if (limite !== null && limite < 0) throw new Error('Límite no válido');
+  const hoja = obtenerHoja(HOJA_LIMITES, ['Categoría', 'Límite mensual']);
+  if (hoja.getLastRow() > 1) {
+    const nombres = hoja.getRange(2, 1, hoja.getLastRow() - 1, 1).getValues();
+    for (let i = nombres.length - 1; i >= 0; i--) {
+      if (String(nombres[i][0]).trim().toLowerCase() === categoria.toLowerCase()) {
+        if (limite === null || limite === 0) hoja.deleteRow(i + 2);
+        else hoja.getRange(i + 2, 1, 1, 2).setValues([[categoria, limite]]);
+        return;
+      }
+    }
+  }
+  if (limite !== null && limite > 0) hoja.appendRow([categoria, limite]);
 }
 
 // ---------- Utilidades ----------

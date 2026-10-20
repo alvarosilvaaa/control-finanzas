@@ -84,6 +84,13 @@ struct API {
         try await enviar(["action": "fijarPresupuesto", "mes": mes.clave, "base": base])
     }
 
+    /// `limite` nulo quita el límite de esa categoría.
+    func fijarLimite(categoria: String, limite: Double?) async throws {
+        var cuerpo: [String: Any] = ["action": "fijarLimite", "categoria": categoria]
+        if let limite { cuerpo["limite"] = limite }
+        try await enviar(cuerpo)
+    }
+
     // MARK: - Transporte
 
     private struct Estado: Decodable {

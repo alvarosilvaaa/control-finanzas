@@ -31,12 +31,19 @@ struct Regla: Codable, Hashable {
     let categoria: String
 }
 
+/// Tope de gasto mensual para una categoría.
+struct LimiteCategoria: Codable, Hashable {
+    var categoria: String
+    var limite: Double
+}
+
 struct DatosFinanzas: Codable {
     var gastos: [Gasto]
     var reglas: [Regla]
     var presupuestos: [PresupuestoMes]
     var ingresos: [IngresoExtra]
     var frecuentes: [Frecuente] = []
+    var limites: [LimiteCategoria] = []
     var presupuestoPorDefecto: Double
 
     static let vacio = DatosFinanzas(gastos: [], reglas: [], presupuestos: [], ingresos: [], presupuestoPorDefecto: 450)
@@ -51,7 +58,7 @@ struct DatosFinanzas: Codable {
         self.presupuestoPorDefecto = presupuestoPorDefecto
     }
 
-    /// `frecuentes` es opcional al leer: scripts antiguos y la caché previa no lo traen.
+    /// `frecuentes` y `limites` son opcionales al leer: scripts antiguos y la caché previa no lo traen.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         gastos = try c.decode([Gasto].self, forKey: .gastos)
@@ -59,6 +66,7 @@ struct DatosFinanzas: Codable {
         presupuestos = try c.decode([PresupuestoMes].self, forKey: .presupuestos)
         ingresos = try c.decode([IngresoExtra].self, forKey: .ingresos)
         frecuentes = try c.decodeIfPresent([Frecuente].self, forKey: .frecuentes) ?? []
+        limites = try c.decodeIfPresent([LimiteCategoria].self, forKey: .limites) ?? []
         presupuestoPorDefecto = try c.decode(Double.self, forKey: .presupuestoPorDefecto)
     }
 }

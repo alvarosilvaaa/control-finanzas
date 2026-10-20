@@ -21,6 +21,7 @@ struct MacContentView: View {
                             .tag(SeccionMac.sinClasificar)
                     }
                     Label("Meses", systemImage: "calendar").tag(SeccionMac.meses)
+                    Label("Ahorro", systemImage: "lightbulb").tag(SeccionMac.ahorro)
                 }
 
                 if !mesActual.porCategoria.isEmpty {
@@ -72,6 +73,8 @@ struct MacContentView: View {
                 TablaGastos(titulo: "Sin clasificar", mostrarFiltroMes: false) { $0.categoria == "Sin clasificar" }
             case .meses:
                 MesesView()
+            case .ahorro:
+                AhorroView()
             case .categoria(let c):
                 TablaGastos(titulo: c) { $0.categoria == c }
             case .dia(let fecha):

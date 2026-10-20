@@ -51,7 +51,7 @@ final class Navegacion {
 }
 
 enum SeccionMac: Hashable {
-    case resumen, movimientos, sinClasificar, meses
+    case resumen, movimientos, sinClasificar, meses, ahorro
     case categoria(String)
     /// Gastos de un día concreto (al hacer clic en el gráfico del resumen).
     case dia(Date)
@@ -89,6 +89,9 @@ struct ContentView: View {
             }
             Tab("Movimientos", systemImage: "list.bullet", value: 1) {
                 MovimientosView(mostrandoNuevo: $mostrandoNuevo).fontDesign(.rounded)
+            }
+            Tab("Ahorro", systemImage: "lightbulb.fill", value: 4) {
+                AhorroView().fontDesign(.rounded)
             }
             Tab("Meses", systemImage: "calendar", value: 2) {
                 MesesView().fontDesign(.rounded)

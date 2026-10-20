@@ -252,6 +252,28 @@ final class Almacen {
         await recargar()
     }
 
+    // MARK: - Límites por categoría
+
+    var limites: [LimiteCategoria] {
+        datos.limites.sorted { $0.categoria.localizedCompare($1.categoria) == .orderedAscending }
+    }
+
+    func limite(de categoria: String) -> Double? {
+        datos.limites.first { $0.categoria.caseInsensitiveCompare(categoria) == .orderedSame }?.limite
+    }
+
+    /// `nil` quita el límite.
+    func fijarLimite(_ limite: Double?, para categoria: String) async throws {
+        if modoDemo {
+            datos.limites.removeAll { $0.categoria.caseInsensitiveCompare(categoria) == .orderedSame }
+            if let limite, limite > 0 { datos.limites.append(LimiteCategoria(categoria: categoria, limite: limite)) }
+            return
+        }
+        guard let api else { throw ErrorAPI.sinConfigurar }
+        try await api.fijarLimite(categoria: categoria, limite: limite)
+        await recargar()
+    }
+
     func ajustesCambiados() async {
         if !modoDemo, let cache = Self.leerCache() { datos = cache.datos } else if !modoDemo { datos = .vacio }
         await recargar()
