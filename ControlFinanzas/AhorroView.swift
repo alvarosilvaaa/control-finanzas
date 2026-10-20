@@ -4,7 +4,6 @@ import SwiftUI
 struct AhorroView: View {
     @Environment(Almacen.self) private var almacen
     @State private var editando: EdicionLimite?
-    @State private var preguntando = false
 
     var body: some View {
         #if os(iOS)
@@ -33,23 +32,6 @@ struct AhorroView: View {
         let consejos = almacen.consejos
         return ScrollView {
             VStack(alignment: .leading, spacing: 32) {
-                Button { preguntando = true } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: "sparkles").font(.title3.weight(.semibold))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Preguntar a Claude").font(.body.weight(.semibold))
-                            Text("Ideas para ahorrar a partir de tus gastos").font(.caption).opacity(0.7)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).opacity(0.6)
-                    }
-                    .foregroundStyle(Color.fondo)
-                    .padding(.horizontal, 18).padding(.vertical, 14)
-                    .background(Tema.tinta, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-
                 VStack(alignment: .leading, spacing: 4) {
                     Titulo(texto: "Consejos", detalle: "Calculados con tus gastos de \(Mes.actual.nombreMes.lowercased())")
                     if consejos.isEmpty {
@@ -90,7 +72,6 @@ struct AhorroView: View {
             .frame(maxWidth: .infinity)
         }
         .background(Color.fondo)
-        .sheet(isPresented: $preguntando) { ChatClaudeView().fontDesign(.rounded) }
         .sheet(item: $editando) { e in
             EditarLimiteView(categoriaInicial: e.categoria).fontDesign(.rounded)
         }

@@ -3,7 +3,7 @@
  *
  * La app habla con este script mediante peticiones POST con un cuerpo JSON:
  *   { "token": "...", "action": "datos" | "nuevoGasto" | "editarGasto" | "borrarGasto" | "nuevaRegla"
- *                               | "nuevoIngreso" | "borrarIngreso" | "fijarPresupuesto" | "fijarLimite" | "preguntarClaude", ... }
+ *                               | "nuevoIngreso" | "borrarIngreso" | "fijarPresupuesto" | "fijarLimite", ... }
  *
  * Los gastos nuevos se envían a través del mismo formulario de Google que usa
  * el atajo, así que entran por el mismo camino (Respuestas de formulario 1 → Gastos).
@@ -72,8 +72,6 @@ function doPost(e) {
       case 'fijarLimite':
         conBloqueo(() => fijarLimite(req));
         return json({ ok: true });
-      case 'preguntarClaude':
-        return json(Object.assign({ ok: true }, preguntarClaude(req)));
       default:
         return json({ ok: false, error: 'Acción desconocida: ' + req.action });
     }
@@ -399,72 +397,6 @@ function fijarLimite(req) {
     }
   }
   if (limite !== null && limite > 0) hoja.appendRow([categoria, limite]);
-}
-
-// ---------- Preguntar a Claude ----------
-
-// La clave de la API de Anthropic tampoco se escribe aquí: va en
-// ⚙️ Configuración del proyecto → Propiedades del script → propiedad "ANTHROPIC_API_KEY".
-const MODELO_CLAUDE = 'claude-opus-5-5';
-
-const INSTRUCCIONES_CLAUDE = [
-  'Eres el asistente de ahorro de una app personal de control de gastos. Hablas en español de España, de tú.',
-  'Con cada conversación recibes un resumen de los gastos del usuario: presupuesto mensual, gastos del mes, totales por categoría, meses anteriores, límites y gastos fijos.',
-  'Ayúdale a entender en qué gasta y a recortar: da recomendaciones concretas y realistas, apoyadas en sus cifras (importes, comercios, categorías), y di cuánto ahorraría con cada una cuando se pueda estimar.',
-  'Si los datos no bastan para responder algo, dilo en lugar de inventar.',
-  'No des asesoramiento de inversión (productos financieros, acciones, criptomonedas): explica que no eres un asesor financiero autorizado y vuelve al control del gasto.',
-  'Sé breve: respuestas de unas pocas frases o una lista corta. La app solo muestra negritas (**así**) y guiones al principio de línea; no uses títulos, tablas ni bloques de código.',
-].join('\n');
-
-/**
- * Envía la conversación a Claude y devuelve su respuesta.
- * req.mensajes: [{ role: "user" | "assistant", content: string | bloques }]. Los turnos de Claude se
- * devuelven a la app tal cual (contenido) para reenviarlos sin cambios en las siguientes preguntas.
- */
-function preguntarClaude(req) {
-  const clave = PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY');
-  if (!clave) throw new Error('Falta la clave de Claude. Añade la propiedad ANTHROPIC_API_KEY en la configuración del script.');
-  const mensajes = req.mensajes;
-  if (!Array.isArray(mensajes) || !mensajes.length) throw new Error('No hay ninguna pregunta');
-
-  const respuesta = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
-    method: 'post',
-    contentType: 'application/json',
-    headers: {
-      'x-api-key': clave,
-      'anthropic-version': '2023-06-01',
-      // Si un filtro de seguridad rechaza la pregunta, se reintenta con el modelo alternativo recomendado.
-      'anthropic-beta': 'server-side-fallback-2026-07-01',
-    },
-    payload: JSON.stringify({
-      model: MODELO_CLAUDE,
-      max_tokens: 16000,
-      thinking: { type: 'adaptive' },
-      output_config: { effort: 'low' },
-      fallbacks: 'default',
-      system: INSTRUCCIONES_CLAUDE,
-      messages: mensajes,
-    }),
-    muteHttpExceptions: true,
-  });
-
-  const codigo = respuesta.getResponseCode();
-  const cuerpo = JSON.parse(respuesta.getContentText());
-  if (codigo !== 200) {
-    const detalle = (cuerpo.error && cuerpo.error.message) || ('HTTP ' + codigo);
-    if (codigo === 401) throw new Error('La clave de Claude no es válida. Revisa ANTHROPIC_API_KEY.');
-    if (codigo === 429 || codigo === 529) throw new Error('Claude está saturado ahora mismo. Prueba en un momento.');
-    throw new Error('Claude respondió con un error: ' + detalle);
-  }
-  if (cuerpo.stop_reason === 'refusal') {
-    return { texto: 'Claude no ha podido responder a esa pregunta. Prueba a formularla de otra manera.', contenido: null };
-  }
-  const texto = (cuerpo.content || [])
-    .filter(b => b.type === 'text')
-    .map(b => b.text)
-    .join('\n\n')
-    .trim();
-  return { texto: texto || 'Claude no ha devuelto texto.', contenido: JSON.stringify(cuerpo.content || []) };
 }
 
 // ---------- Utilidades ----------

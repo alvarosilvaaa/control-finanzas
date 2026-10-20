@@ -91,17 +91,6 @@ struct API {
         try await enviar(cuerpo)
     }
 
-    struct RespuestaClaude: Decodable {
-        let texto: String
-        /// Bloques de la respuesta tal cual (JSON), para reenviarlos sin cambios en la siguiente pregunta.
-        let contenido: String?
-    }
-
-    /// `mensajes` en el formato de la API de Claude: [{"role": "user"|"assistant", "content": …}].
-    func preguntarClaude(mensajes: [[String: Any]]) async throws -> RespuestaClaude {
-        try await enviar(["action": "preguntarClaude", "mensajes": mensajes], como: RespuestaClaude.self, espera: 180)
-    }
-
     // MARK: - Transporte
 
     private struct Estado: Decodable {
@@ -115,10 +104,10 @@ struct API {
         _ = try await enviar(cuerpo, como: Vacio.self)
     }
 
-    private func enviar<T: Decodable>(_ cuerpo: [String: Any], como tipo: T.Type, espera: TimeInterval = 30) async throws -> T {
+    private func enviar<T: Decodable>(_ cuerpo: [String: Any], como tipo: T.Type) async throws -> T {
         var cuerpo = cuerpo
         cuerpo["token"] = token
-        var peticion = URLRequest(url: url, timeoutInterval: espera)
+        var peticion = URLRequest(url: url, timeoutInterval: 30)
         peticion.httpMethod = "POST"
         // Apps Script responde con una redirección; text/plain evita problemas con ella.
         peticion.setValue("text/plain;charset=utf-8", forHTTPHeaderField: "Content-Type")

@@ -18,7 +18,7 @@ final class Almacen {
 
     var configurado: Bool { modoDemo || api != nil }
 
-    var api: API? {
+    private var api: API? {
         API(url: defaults.string(forKey: Self.claveURL) ?? "", token: defaults.string(forKey: Self.claveToken) ?? "")
     }
 

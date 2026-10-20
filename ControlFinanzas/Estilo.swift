@@ -119,8 +119,8 @@ extension View {
 
 extension View {
     /// Muestra un aviso emergente cuando `error` tiene valor.
-    func alertaError(_ error: Binding<String?>, titulo: String = "No se ha podido guardar") -> some View {
-        alert(titulo,
+    func alertaError(_ error: Binding<String?>) -> some View {
+        alert("No se ha podido guardar",
               isPresented: Binding(get: { error.wrappedValue != nil }, set: { if !$0 { error.wrappedValue = nil } })) {
             Button("Vale", role: .cancel) {}
         } message: {
