@@ -27,7 +27,7 @@ struct SelectorCategoria: View {
                         categoria = c
                     }
                 }
-                Chip(texto: "Nueva", icono: "plus", color: .gray, seleccionado: creando) {
+                Chip(texto: "Nueva", icono: "plus", color: Tema.tinta, seleccionado: creando) {
                     creando = true
                     categoria = nueva.trimmingCharacters(in: .whitespaces)
                     enfocado = true
@@ -61,8 +61,8 @@ struct Chip: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity)
-            .foregroundStyle(seleccionado ? .white : color)
-            .background(seleccionado ? AnyShapeStyle(color.gradient) : AnyShapeStyle(color.opacity(0.12)),
+            .foregroundStyle(seleccionado ? Color.fondo : color)
+            .background(seleccionado ? AnyShapeStyle(color) : AnyShapeStyle(color.opacity(0.07)),
                         in: Capsule())
         }
         .buttonStyle(.plain)

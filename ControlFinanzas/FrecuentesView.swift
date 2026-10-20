@@ -47,14 +47,14 @@ private struct TarjetaFrecuente: View {
                     Text("Pendiente")
                         .font(.caption2.bold())
                         .padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(.orange.opacity(0.18), in: Capsule())
-                        .foregroundStyle(.orange)
+                        .background(Tema.tinta, in: Capsule())
+                        .foregroundStyle(Color.fondo)
                 }
             }
             .padding(.horizontal, 10).padding(.vertical, 8)
-            .background(estilo.color.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(estilo.color.opacity(0.06), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(pendiente ? Color.orange.opacity(0.6) : .clear))
+                .strokeBorder(pendiente ? Tema.tinta : .clear, lineWidth: 1.5))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -93,7 +93,7 @@ struct GestionFrecuentesView: View {
                             Button { editando = f } label: {
                                 HStack {
                                     FilaFrecuente(frecuente: f, pendiente: false)
-                                    Image(systemName: "plus.circle.fill").foregroundStyle(Color.accentColor)
+                                    Image(systemName: "plus.circle.fill").foregroundStyle(Tema.tinta)
                                 }
                             }
                             .buttonStyle(.plain)
@@ -125,7 +125,7 @@ private struct FilaFrecuente: View {
             }
             Spacer()
             if pendiente {
-                Text("Pendiente").font(.caption.bold()).foregroundStyle(.orange)
+                Text("Pendiente").font(.caption.bold())
             }
         }
         .contentShape(Rectangle())

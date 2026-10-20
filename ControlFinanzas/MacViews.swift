@@ -86,10 +86,10 @@ private struct PieBarraLateral: View {
                 ProgressView().controlSize(.small)
                 Text("Actualizando…")
             } else if almacen.error != nil {
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Tema.alerta)
                 Text("Sin conexión con la hoja")
             } else if let fecha = almacen.ultimaActualizacion {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                Image(systemName: "checkmark.circle.fill")
                 Text("Actualizado \(fecha.formatted(.relative(presentation: .named).locale(Locale(identifier: "es_ES"))))")
             }
             Spacer()

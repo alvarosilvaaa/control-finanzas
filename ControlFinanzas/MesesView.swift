@@ -12,7 +12,7 @@ struct MesesView: View {
                     Section {
                         Chart(resumenes.reversed(), id: \.mes) { r in
                             BarMark(x: .value("Mes", r.mes.nombreCorto), y: .value("Gastado", r.totalGastado))
-                                .foregroundStyle(r.restante < 0 ? Color.red.gradient : Color.accentColor.gradient)
+                                .foregroundStyle(r.restante < 0 ? Tema.alerta.gradient : Tema.tinta.opacity(0.8).gradient)
                                 .cornerRadius(6)
                         }
                         .frame(height: 160)
@@ -45,15 +45,15 @@ private struct FilaMes: View {
                 Text(r.mes.nombre).font(.headline)
                 if r.mes == .actual {
                     Text("En curso").font(.caption2.bold()).padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Color.accentColor.opacity(0.15), in: Capsule()).foregroundStyle(Color.accentColor)
+                        .background(Tema.tinta.opacity(0.1), in: Capsule())
                 }
                 Spacer()
                 Text(Formato.eur(r.totalGastado)).bold()
             }
-            ProgressView(value: min(r.progreso, 1)).tint(r.progreso >= 1 ? .red : .accentColor)
+            ProgressView(value: min(r.progreso, 1)).tint(r.progreso >= 1 ? Tema.alerta : Tema.tinta)
             Text(r.restante >= 0 ? "Ahorrado \(Formato.eur(r.restante)) de \(Formato.eur(r.presupuesto))"
                                  : "Pasado \(Formato.eur(-r.restante)) de \(Formato.eur(r.presupuesto))")
-                .font(.caption).foregroundStyle(r.restante >= 0 ? Color.secondary : Color.red)
+                .font(.caption).foregroundStyle(r.restante >= 0 ? Color.secondary : Tema.alerta)
         }
         .padding(.vertical, 4)
     }
@@ -74,7 +74,7 @@ struct ResumenMensualView: View {
                 LabeledContent("Presupuesto", value: Formato.eur(r.presupuesto))
                 LabeledContent("Gastado", value: Formato.eur(r.totalGastado))
                 LabeledContent(r.restante >= 0 ? "Ahorrado" : "Exceso") {
-                    Text(Formato.eur(abs(r.restante))).bold().foregroundStyle(r.restante >= 0 ? .green : .red)
+                    Text(Formato.eur(abs(r.restante))).bold().foregroundStyle(r.restante >= 0 ? Tema.tinta : Tema.alerta)
                 }
                 LabeledContent("Número de gastos", value: "\(r.gastos.count)")
                 LabeledContent("Media diaria", value: Formato.eur(r.mediaDiaria))
@@ -141,7 +141,7 @@ struct Variacion: View {
             let cambio = (actual - anterior) / anterior
             Label("\(cambio >= 0 ? "+" : "")\(Int((cambio * 100).rounded()))%",
                   systemImage: cambio >= 0 ? "arrow.up.right" : "arrow.down.right")
-                .foregroundStyle(cambio > 0 ? .red : .green)
+                .foregroundStyle(cambio > 0 ? Tema.tinta : .secondary)
         }
     }
 }

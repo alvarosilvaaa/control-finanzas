@@ -36,14 +36,14 @@ struct PresupuestoView: View {
                 Section {
                     ForEach(r.ingresos) { i in
                         HStack {
-                            Image(systemName: "plus.circle.fill").foregroundStyle(.green)
+                            Image(systemName: "plus.circle.fill").foregroundStyle(.secondary)
                             VStack(alignment: .leading) {
                                 Text(i.concepto)
                                 Text(i.fecha.formatted(date: .abbreviated, time: .omitted))
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                             Spacer()
-                            Text("+" + Formato.eur(i.importe)).foregroundStyle(.green).bold()
+                            Text("+" + Formato.eur(i.importe)).bold()
                         }
                     }
                     .onDelete { indices in

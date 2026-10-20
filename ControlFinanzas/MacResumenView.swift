@@ -82,7 +82,13 @@ private struct Panel<Contenido: View>: View {
                 HStack {
                     Text(titulo).font(.headline)
                     Spacer()
-                    if let accion { Button(accion.0, action: accion.1).buttonStyle(.link) }
+                    if let accion {
+                        Button(action: accion.1) {
+                            HStack(spacing: 2) { Text(accion.0); Image(systemName: "chevron.right").imageScale(.small) }
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                    }
                 }
             }
             contenido
@@ -100,7 +106,7 @@ private struct FilaIndicadores: View {
 
     var body: some View {
         let r = resumen
-        let colorProgreso: Color = r.progreso >= 1 ? .red : r.progreso >= 0.8 ? .orange : .accentColor
+        let colorProgreso: Color = r.progreso >= 1 ? Tema.alerta : Tema.tinta
         HStack(alignment: .top, spacing: 12) {
             Indicador(titulo: r.restante >= 0 ? "Te quedan" : "Te has pasado",
                       valor: Formato.eur(abs(r.restante)), grande: true,
@@ -127,12 +133,12 @@ private struct FilaIndicadores: View {
                     Text("\(r.diasRestantes) días restantes")
                 }
                 Indicador(titulo: "Previsión fin de mes", valor: Formato.eurSinDecimales(r.proyeccion),
-                          color: r.proyeccion > r.presupuesto ? .red : .primary) {
+                          color: r.proyeccion > r.presupuesto ? Tema.alerta : .primary) {
                     Text("Media de \(Formato.eur(r.mediaDiaria)) al día")
                 }
             } else {
                 Indicador(titulo: r.restante >= 0 ? "Ahorrado" : "Exceso", valor: Formato.eur(abs(r.restante)),
-                          color: r.restante >= 0 ? .green : .red) {
+                          color: r.restante >= 0 ? .primary : Tema.alerta) {
                     Text("Media de \(Formato.eur(r.mediaDiaria)) al día")
                 }
             }
@@ -190,9 +196,9 @@ private struct GraficoAcumuladoMac: View {
         Chart {
             ForEach(puntos, id: \.dia) { p in
                 AreaMark(x: .value("Día", p.dia), y: .value("Gastado", p.total))
-                    .foregroundStyle(Color.accentColor.opacity(0.12).gradient)
+                    .foregroundStyle(Tema.tinta.opacity(0.12).gradient)
                 LineMark(x: .value("Día", p.dia), y: .value("Gastado", p.total), series: .value("Serie", "Real"))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Tema.tinta)
                     .lineStyle(StrokeStyle(lineWidth: 2.5))
             }
             LineMark(x: .value("Día", 1), y: .value("Ideal", ritmo), series: .value("Serie", "Ideal"))
@@ -202,15 +208,16 @@ private struct GraficoAcumuladoMac: View {
                 .foregroundStyle(.secondary)
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
             RuleMark(y: .value("Presupuesto", r.presupuesto))
-                .foregroundStyle(.red.opacity(0.5))
+                .foregroundStyle(.secondary)
+                .lineStyle(StrokeStyle(lineWidth: 1))
                 .annotation(position: .top, alignment: .leading) {
-                    Text("Presupuesto \(Formato.eurSinDecimales(r.presupuesto))").font(.caption2).foregroundStyle(.red)
+                    Text("Presupuesto \(Formato.eurSinDecimales(r.presupuesto))").font(.caption2).foregroundStyle(.secondary)
                 }
             if let punto {
                 RuleMark(x: .value("Día", punto.dia))
                     .foregroundStyle(.secondary.opacity(0.4))
                 PointMark(x: .value("Día", punto.dia), y: .value("Gastado", punto.total))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Tema.tinta)
                     .annotation(position: .top, spacing: 8, overflowResolution: .init(x: .fit, y: .disabled)) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Día \(punto.dia)").font(.caption).foregroundStyle(.secondary)
@@ -218,7 +225,7 @@ private struct GraficoAcumuladoMac: View {
                             let diferencia = punto.total - ritmo * Double(punto.dia)
                             Text(diferencia > 0 ? "\(Formato.eur(diferencia)) por encima del ritmo"
                                                 : "\(Formato.eur(-diferencia)) por debajo del ritmo")
-                                .font(.caption2).foregroundStyle(diferencia > 0 ? .red : .green)
+                                .font(.caption2).foregroundStyle(diferencia > 0 ? Tema.alerta : .secondary)
                         }
                         .padding(8)
                         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
@@ -236,7 +243,7 @@ private struct GraficoAcumuladoMac: View {
         .frame(height: 260)
 
         HStack(spacing: 16) {
-            Label("Gasto real", systemImage: "line.diagonal").foregroundStyle(Color.accentColor)
+            Label("Gasto real", systemImage: "line.diagonal").foregroundStyle(Tema.tinta)
             Label("Ritmo para llegar justo al presupuesto", systemImage: "line.diagonal").foregroundStyle(.secondary)
             Spacer()
             Text("Pasa el ratón por el gráfico para ver cada día").foregroundStyle(.tertiary)
@@ -283,7 +290,7 @@ private struct CategoriasMac: View {
         Chart(datos, id: \.categoria) { d in
             SectorMark(angle: .value("Total", d.total), innerRadius: .ratio(0.62), angularInset: 1.5)
                 .cornerRadius(4)
-                .foregroundStyle(EstiloCategoria.de(d.categoria).color)
+                .foregroundStyle(Tema.gris(datos.firstIndex { $0.categoria == d.categoria } ?? 0, de: datos.count))
                 .opacity(seleccionada == nil || seleccionada == d.categoria ? 1 : 0.35)
         }
         .chartAngleSelection(value: $anguloSeleccionado)
@@ -316,7 +323,7 @@ private struct CategoriasMac: View {
                     }
                     .padding(.vertical, 4)
                     .padding(.horizontal, 6)
-                    .background(seleccionada == d.categoria ? Color.accentColor.opacity(0.12) : .clear,
+                    .background(seleccionada == d.categoria ? Tema.tinta.opacity(0.08) : .clear,
                                 in: RoundedRectangle(cornerRadius: 6))
                     .contentShape(Rectangle())
                 }

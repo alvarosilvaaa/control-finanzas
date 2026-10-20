@@ -114,7 +114,7 @@ private struct TarjetaPresupuesto: View {
 
     var body: some View {
         let r = resumen
-        let color: Color = r.progreso >= 1 ? .red : r.progreso >= 0.8 ? .orange : .accentColor
+        let color: Color = r.progreso >= 1 ? Tema.alerta : Tema.tinta
         Tarjeta {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top) {
@@ -123,7 +123,7 @@ private struct TarjetaPresupuesto: View {
                             .font(.subheadline).foregroundStyle(.secondary)
                         Text(Formato.eur(abs(r.restante)))
                             .font(.system(size: 40, weight: .bold, design: .rounded))
-                            .foregroundStyle(r.restante >= 0 ? Color.primary : Color.red)
+                            .foregroundStyle(r.restante >= 0 ? Color.primary : Tema.alerta)
                             .contentTransition(.numericText())
                     }
                     Spacer()
@@ -158,7 +158,7 @@ private struct TarjetaPresupuesto: View {
 
                 if r.totalExtra > 0 {
                     Label("Incluye \(Formato.eur(r.totalExtra)) de ingresos extra", systemImage: "plus.circle.fill")
-                        .font(.caption).foregroundStyle(.green)
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
         }
@@ -179,7 +179,7 @@ private struct TarjetaRitmo: View {
                 Dato(titulo: "Media diaria", valor: Formato.eur(r.mediaDiaria))
                 Spacer()
                 Dato(titulo: "Fin de mes", valor: Formato.eurSinDecimales(r.proyeccion),
-                     color: r.proyeccion > r.presupuesto ? .red : .primary)
+                     color: r.proyeccion > r.presupuesto ? Tema.alerta : .primary)
             }
         }
     }
@@ -209,10 +209,10 @@ private struct GraficoAcumulado: View {
                 Chart {
                     ForEach(r.acumuladoPorDia, id: \.dia) { punto in
                         AreaMark(x: .value("Día", punto.dia), y: .value("Gastado", punto.total))
-                            .foregroundStyle(Color.accentColor.opacity(0.15).gradient)
+                            .foregroundStyle(Tema.tinta.opacity(0.15).gradient)
                         LineMark(x: .value("Día", punto.dia), y: .value("Gastado", punto.total),
                                  series: .value("Serie", "Real"))
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(Tema.tinta)
                             .lineStyle(StrokeStyle(lineWidth: 2.5))
                     }
                     // Ritmo ideal: repartir el presupuesto por igual entre todos los días.
@@ -225,10 +225,10 @@ private struct GraficoAcumulado: View {
                         .foregroundStyle(.secondary)
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                     RuleMark(y: .value("Presupuesto", r.presupuesto))
-                        .foregroundStyle(.red.opacity(0.6))
+                        .foregroundStyle(.secondary)
                         .lineStyle(StrokeStyle(lineWidth: 1))
                         .annotation(position: .top, alignment: .leading) {
-                            Text("Presupuesto").font(.caption2).foregroundStyle(.red)
+                            Text("Presupuesto").font(.caption2).foregroundStyle(.secondary)
                         }
                 }
                 .chartXScale(domain: 1...r.mes.numeroDeDias)
@@ -240,7 +240,7 @@ private struct GraficoAcumulado: View {
                 }
                 .frame(height: 180)
                 HStack(spacing: 12) {
-                    Label("Real", systemImage: "line.diagonal").foregroundStyle(Color.accentColor)
+                    Label("Real", systemImage: "line.diagonal").foregroundStyle(Tema.tinta)
                     Label("Ritmo ideal", systemImage: "line.diagonal").foregroundStyle(.secondary)
                 }
                 .font(.caption)
@@ -261,7 +261,7 @@ private struct GraficoCategorias: View {
                 Chart(datos, id: \.categoria) { d in
                     SectorMark(angle: .value("Total", d.total), innerRadius: .ratio(0.62), angularInset: 1.5)
                         .cornerRadius(4)
-                        .foregroundStyle(EstiloCategoria.de(d.categoria).color)
+                        .foregroundStyle(Tema.gris(datos.firstIndex { $0.categoria == d.categoria } ?? 0, de: datos.count))
                 }
                 .chartBackground { _ in
                     VStack {
@@ -325,9 +325,9 @@ struct BotonAñadir: View {
         Button(action: accion) {
             Image(systemName: "plus")
                 .font(.title2.bold())
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.fondo)
                 .frame(width: 60, height: 60)
-                .background(Color.accentColor.gradient, in: Circle())
+                .background(Tema.tinta, in: Circle())
                 .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
         }
         .padding(20)
@@ -341,9 +341,9 @@ struct AvisoError: View {
     var body: some View {
         Label(mensaje, systemImage: "exclamationmark.triangle.fill")
             .font(.footnote)
-            .foregroundStyle(.orange)
+            .foregroundStyle(Tema.alerta)
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+            .background(Tema.alerta.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
     }
 }

@@ -75,6 +75,15 @@ extension Color {
         #endif
     }
 
+    /// Fondo de la pantalla (blanco en claro, negro en oscuro): para texto sobre elementos en `Tema.tinta`.
+    static var fondo: Color {
+        #if os(iOS)
+        Color(.systemBackground)
+        #else
+        Color(nsColor: .windowBackgroundColor)
+        #endif
+    }
+
     static var fondoTarjeta: Color {
         #if os(iOS)
         Color(.secondarySystemGroupedBackground)

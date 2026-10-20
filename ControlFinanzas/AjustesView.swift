@@ -35,7 +35,7 @@ struct AjustesView: View {
                     .disabled(probando || modoDemo || API(url: url, token: token) == nil)
                     if let resultado {
                         Label(resultado.texto, systemImage: resultado.ok ? "checkmark.circle.fill" : "xmark.octagon.fill")
-                            .foregroundStyle(resultado.ok ? .green : .red)
+                            .foregroundStyle(resultado.ok ? Tema.tinta : Tema.alerta)
                             .font(.footnote)
                     }
                 } header: {

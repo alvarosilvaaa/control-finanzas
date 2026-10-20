@@ -160,7 +160,7 @@ struct NuevoMovimientoView: View {
                 ForEach([("Hoy", 0), ("Ayer", -1), ("Anteayer", -2)], id: \.1) { nombre, dias in
                     let seleccionado = dias == 0 ? fechaGasto == nil
                         : fechaGasto.map { Calendar.current.isDate($0, inSameDayAs: diaRelativo(dias)) } ?? false
-                    Chip(texto: nombre, icono: "calendar", color: .accentColor, seleccionado: seleccionado) {
+                    Chip(texto: nombre, icono: "calendar", color: Tema.tinta, seleccionado: seleccionado) {
                         fechaGasto = dias == 0 ? nil : diaRelativo(dias)
                     }
                 }

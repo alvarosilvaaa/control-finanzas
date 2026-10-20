@@ -23,41 +23,53 @@ enum Formato {
     static let diaLargo: Date.FormatStyle = .dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "es_ES"))
 }
 
-/// Icono y color de cada categoría. Las desconocidas reciben un color estable según su nombre.
+/// Paleta monocroma: negro / grises, y rojo solo para alertas (pasarse del presupuesto).
+enum Tema {
+    /// Color principal de los elementos: negro en modo claro, blanco en modo oscuro.
+    static let tinta = Color.primary
+    static let alerta = Color.red
+
+    /// Gris para la posición `i` de `n` (0 = el más oscuro). Para distinguir porciones de un gráfico.
+    static func gris(_ i: Int, de n: Int) -> Color {
+        guard n > 1 else { return tinta }
+        return tinta.opacity(1 - 0.78 * Double(i) / Double(n - 1))
+    }
+}
+
+/// Icono de cada categoría. El color es el mismo para todas (monocromo); se distinguen por el símbolo.
 struct EstiloCategoria {
     let icono: String
-    let color: Color
+    var color: Color { Tema.tinta }
 
-    private static let conocidas: [String: EstiloCategoria] = [
-        "super": .init(icono: "cart.fill", color: .green),
-        "supermercado": .init(icono: "cart.fill", color: .green),
-        "bares": .init(icono: "wineglass.fill", color: .orange),
-        "cafeteria": .init(icono: "cup.and.saucer.fill", color: .brown),
-        "restaurantes": .init(icono: "fork.knife", color: .red),
-        "comida": .init(icono: "takeoutbag.and.cup.and.straw.fill", color: .pink),
-        "deporte": .init(icono: "figure.run", color: .mint),
-        "cuidado personal": .init(icono: "comb.fill", color: .purple),
-        "videojuegos": .init(icono: "gamecontroller.fill", color: .indigo),
-        "cultura": .init(icono: "book.fill", color: .teal),
-        "tecnologia": .init(icono: "iphone", color: .blue),
-        "transporte": .init(icono: "tram.fill", color: .cyan),
-        "ocio": .init(icono: "party.popper.fill", color: .yellow),
-        "ropa": .init(icono: "tshirt.fill", color: .pink),
-        "salud": .init(icono: "cross.case.fill", color: .red),
-        "hogar": .init(icono: "house.fill", color: .brown),
-        "suscripciones": .init(icono: "repeat", color: .indigo),
-        "sin clasificar": .init(icono: "questionmark.circle.fill", color: .gray),
+    private static let conocidas: [String: String] = [
+        "super": "cart.fill",
+        "supermercado": "cart.fill",
+        "bares": "wineglass.fill",
+        "cafeteria": "cup.and.saucer.fill",
+        "restaurantes": "fork.knife",
+        "comida": "takeoutbag.and.cup.and.straw.fill",
+        "deporte": "figure.run",
+        "cuidado personal": "comb.fill",
+        "videojuegos": "gamecontroller.fill",
+        "cultura": "book.fill",
+        "tecnologia": "iphone",
+        "transporte": "tram.fill",
+        "ocio": "party.popper.fill",
+        "ropa": "tshirt.fill",
+        "salud": "cross.case.fill",
+        "hogar": "house.fill",
+        "limpieza": "bubbles.and.sparkles.fill",
+        "estudio": "graduationcap.fill",
+        "regalos": "gift.fill",
+        "suscripciones": "repeat",
+        "sin clasificar": "questionmark",
     ]
-
-    private static let paleta: [Color] = [.blue, .orange, .green, .purple, .pink, .teal, .indigo, .red, .mint, .cyan]
 
     static func de(_ categoria: String) -> EstiloCategoria {
         let clave = categoria
             .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
             .trimmingCharacters(in: .whitespaces)
-        if let e = conocidas[clave] { return e }
-        let indice = clave.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0xFFFF } % paleta.count
-        return .init(icono: "tag.fill", color: paleta[indice])
+        return .init(icono: conocidas[clave] ?? "tag.fill")
     }
 }
 
@@ -66,12 +78,13 @@ struct IconoCategoria: View {
     var tamaño: CGFloat = 36
 
     var body: some View {
-        let e = EstiloCategoria.de(categoria)
-        Image(systemName: e.icono)
+        let sinClasificar = categoria == "Sin clasificar"
+        Image(systemName: EstiloCategoria.de(categoria).icono)
             .font(.system(size: tamaño * 0.45, weight: .semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle(sinClasificar ? Tema.tinta : Color.fondo)
             .frame(width: tamaño, height: tamaño)
-            .background(e.color.gradient, in: RoundedRectangle(cornerRadius: tamaño * 0.3, style: .continuous))
+            .background(sinClasificar ? AnyShapeStyle(Tema.tinta.opacity(0.1)) : AnyShapeStyle(Tema.tinta.opacity(0.85)),
+                        in: RoundedRectangle(cornerRadius: tamaño * 0.3, style: .continuous))
     }
 }
 
