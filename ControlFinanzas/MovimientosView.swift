@@ -20,29 +20,58 @@ struct MovimientosView: View {
         NavigationStack {
             ListaGastos(gastos: filtrados)
                 .navigationTitle("Movimientos")
-                .searchable(text: $busqueda, prompt: "Buscar comercio o categoría")
                 .refreshable { await almacen.recargar() }
+                .safeAreaInset(edge: .bottom) { barraBusqueda }
                 .toolbar {
-                    ToolbarItem(placement: .inicio) {
-                        Menu {
-                            Picker("Categoría", selection: $categoria) {
-                                Text("Todas las categorías").tag(String?.none)
-                                ForEach(almacen.categorias + ["Sin clasificar"], id: \.self) { Text($0).tag(String?.some($0)) }
-                            }
-                            Picker("Método", selection: $metodo) {
-                                Text("Todos los métodos").tag(String?.none)
-                                ForEach(["Tarjeta", "Bizum", "Efectivo"], id: \.self) { Text($0).tag(String?.some($0)) }
-                            }
-                        } label: {
-                            Image(systemName: categoria == nil && metodo == nil
-                                  ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
-                        }
-                    }
                     ToolbarItem(placement: .fin) {
                         Button { mostrandoNuevo = true } label: { Image(systemName: "plus") }
                     }
                 }
         }
+    }
+
+    /// Buscador flotante abajo con el botón de filtros al lado, como en las apps de banca.
+    private var barraBusqueda: some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField("Buscar movimientos", text: $busqueda, prompt: Text("Buscar movimientos"))
+                    .labelsHidden()
+                    .submitLabel(.search)
+                    .autocorrectionDisabled()
+                if !busqueda.isEmpty {
+                    Button { busqueda = "" } label: { Image(systemName: "xmark.circle.fill") }
+                        .foregroundStyle(.secondary)
+                        .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 48)
+            .cristal(Capsule())
+
+            Menu {
+                Picker("Categoría", selection: $categoria) {
+                    Text("Todas las categorías").tag(String?.none)
+                    ForEach(almacen.categorias + ["Sin clasificar"], id: \.self) { Text($0).tag(String?.some($0)) }
+                }
+                Picker("Método", selection: $metodo) {
+                    Text("Todos los métodos").tag(String?.none)
+                    ForEach(["Tarjeta", "Bizum", "Efectivo"], id: \.self) { Text($0).tag(String?.some($0)) }
+                }
+                if categoria != nil || metodo != nil {
+                    Button("Quitar filtros", role: .destructive) { categoria = nil; metodo = nil }
+                }
+            } label: {
+                Image(systemName: categoria == nil && metodo == nil
+                      ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Tema.tinta)
+                    .frame(width: 48, height: 48)
+                    .cristal(Circle())
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 8)
     }
 }
 

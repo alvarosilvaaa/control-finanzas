@@ -11,6 +11,7 @@ struct ControlFinanzasApp: App {
             MacContentView()
                 .environment(almacen)
                 .environment(navegacion)
+                .fontDesign(.rounded)
                 .frame(minWidth: 900, minHeight: 600)
         }
         .defaultSize(width: 1200, height: 800)
@@ -28,11 +29,13 @@ struct ControlFinanzasApp: App {
         Settings {
             AjustesView()
                 .environment(almacen)
+                .fontDesign(.rounded)
         }
         #else
         WindowGroup {
             ContentView()
                 .environment(almacen)
+                .fontDesign(.rounded)
         }
         #endif
     }
@@ -51,6 +54,19 @@ enum SeccionMac: Hashable {
 }
 
 struct ContentView: View {
+    init() {
+        #if os(iOS)
+        // Los títulos de navegación los dibuja UIKit: hay que darles la letra redondeada aparte.
+        func redondeada(_ estilo: UIFont.TextStyle, _ peso: UIFont.Weight) -> UIFont {
+            let base = UIFont.systemFont(ofSize: UIFont.preferredFont(forTextStyle: estilo).pointSize, weight: peso)
+            return base.fontDescriptor.withDesign(.rounded).map { UIFont(descriptor: $0, size: 0) } ?? base
+        }
+        let barra = UINavigationBar.appearance()
+        barra.largeTitleTextAttributes = [.font: redondeada(.largeTitle, .bold)]
+        barra.titleTextAttributes = [.font: redondeada(.headline, .semibold)]
+        #endif
+    }
+
     @Environment(Almacen.self) private var almacen
     @Environment(\.scenePhase) private var fase
     @State private var mostrandoNuevo = false
@@ -59,20 +75,20 @@ struct ContentView: View {
     var body: some View {
         TabView(selection: $pestaña) {
             Tab("Resumen", systemImage: "chart.pie.fill", value: 0) {
-                ResumenView(mostrandoNuevo: $mostrandoNuevo)
+                ResumenView(mostrandoNuevo: $mostrandoNuevo).fontDesign(.rounded)
             }
             Tab("Movimientos", systemImage: "list.bullet", value: 1) {
-                MovimientosView(mostrandoNuevo: $mostrandoNuevo)
+                MovimientosView(mostrandoNuevo: $mostrandoNuevo).fontDesign(.rounded)
             }
             Tab("Meses", systemImage: "calendar", value: 2) {
-                MesesView()
+                MesesView().fontDesign(.rounded)
             }
             Tab("Ajustes", systemImage: "gearshape.fill", value: 3) {
-                AjustesView()
+                AjustesView().fontDesign(.rounded)
             }
         }
         .sheet(isPresented: $mostrandoNuevo) {
-            NuevoMovimientoView()
+            NuevoMovimientoView().fontDesign(.rounded)
         }
         .task {
             if almacen.configurado { await almacen.recargar() } else { pestaña = 3 }

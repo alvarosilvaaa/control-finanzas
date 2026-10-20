@@ -170,3 +170,14 @@ private struct BarraTeclado: ViewModifier {
     }
 }
 #endif
+
+extension View {
+    /// Efecto de cristal del sistema (iOS 26 / macOS 26) o material translúcido en versiones anteriores.
+    @ViewBuilder func cristal<Forma: Shape>(_ forma: Forma) -> some View {
+        if #available(iOS 26.0, macOS 26.0, *) {
+            glassEffect(.regular.interactive(), in: forma)
+        } else {
+            background(.regularMaterial, in: forma)
+        }
+    }
+}

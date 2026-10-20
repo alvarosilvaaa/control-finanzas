@@ -38,12 +38,13 @@ struct MacContentView: View {
                 }
             }
             .navigationSplitViewColumnWidth(min: 210, ideal: 240)
+            .fontDesign(.rounded)
             .safeAreaInset(edge: .bottom) { PieBarraLateral() }
         } detail: {
-            detalle
+            detalle.fontDesign(.rounded)
         }
         .sheet(isPresented: $navegacion.mostrandoNuevo) {
-            NuevoMovimientoView()
+            NuevoMovimientoView().fontDesign(.rounded)
         }
         .task {
             if almacen.configurado { await almacen.recargar() }
