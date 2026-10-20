@@ -83,8 +83,22 @@ struct ContentView: View {
     @State private var pestaña = 0
     @AppStorage("seccionMas") private var seccionMas = MasView.Seccion.wishlist
 
+    @State private var menuMas = false
+
+    /// Al tocar "Más" no se cambia de pestaña: se despliega el menú (también si ya estás en ella).
+    private var seleccion: Binding<Int> {
+        Binding(get: { pestaña }, set: { nueva in
+            if nueva == 3 {
+                withAnimation(.snappy(duration: 0.22)) { menuMas.toggle() }
+            } else {
+                menuMas = false
+                pestaña = nueva
+            }
+        })
+    }
+
     var body: some View {
-        TabView(selection: $pestaña) {
+        TabView(selection: seleccion) {
             Tab("Resumen", systemImage: "chart.pie.fill", value: 0) {
                 ResumenView(mostrandoNuevo: $mostrandoNuevo).fontDesign(.rounded)
             }
@@ -94,11 +108,27 @@ struct ContentView: View {
             Tab("Ahorro", systemImage: "lightbulb.fill", value: 4) {
                 AhorroView().fontDesign(.rounded)
             }
-            Tab("Meses", systemImage: "calendar", value: 2) {
-                MesesView().fontDesign(.rounded)
+            Tab(pestaña == 3 ? seccionMas.titulo : "Más",
+                systemImage: pestaña == 3 ? seccionMas.icono : "ellipsis.circle.fill", value: 3) {
+                MasView(seccion: seccionMas).fontDesign(.rounded)
             }
-            Tab("Más", systemImage: "ellipsis.circle.fill", value: 3) {
-                MasView(seccion: $seccionMas).fontDesign(.rounded)
+        }
+        .overlay {
+            if menuMas {
+                ZStack(alignment: .bottomTrailing) {
+                    Color.black.opacity(0.12)
+                        .ignoresSafeArea()
+                        .onTapGesture { withAnimation(.snappy(duration: 0.22)) { menuMas = false } }
+                    MenuMas(actual: pestaña == 3 ? seccionMas : nil) { s in
+                        seccionMas = s
+                        pestaña = 3
+                        withAnimation(.snappy(duration: 0.22)) { menuMas = false }
+                    }
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 82)
+                    .transition(.scale(scale: 0.85, anchor: .bottomTrailing).combined(with: .opacity))
+                }
+                .fontDesign(.rounded)
             }
         }
         .sheet(isPresented: $mostrandoNuevo) {

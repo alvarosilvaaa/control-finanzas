@@ -282,32 +282,74 @@ struct EditarDeseoView: View {
     }
 }
 
-/// Pestaña "Más" del iPhone: un menú en el título para cambiar entre la wishlist y los ajustes.
+/// Pestaña "Más" del iPhone: muestra la pantalla elegida en su menú desplegable.
 struct MasView: View {
     enum Seccion: String, CaseIterable, Identifiable {
-        case wishlist, ajustes
+        case meses, wishlist, ajustes
         var id: String { rawValue }
-        var titulo: String { self == .wishlist ? "Wishlist" : "Ajustes" }
-        var icono: String { self == .wishlist ? "gift" : "gearshape" }
-    }
-
-    @Binding var seccion: Seccion
-
-    var body: some View {
-        NavigationStack {
-            Group {
-                switch seccion {
-                case .wishlist: WishlistView()
-                case .ajustes: AjustesView(conNavegacion: false)
-                }
-            }
-            .navigationTitle(seccion.titulo)
-            .tituloEnLinea()
-            .toolbarTitleMenu {
-                ForEach(Seccion.allCases) { s in
-                    Button { seccion = s } label: { Label(s.titulo, systemImage: s.icono) }
-                }
+        var titulo: String {
+            switch self {
+            case .meses: "Meses"
+            case .wishlist: "Wishlist"
+            case .ajustes: "Ajustes"
             }
         }
+        var icono: String {
+            switch self {
+            case .meses: "calendar"
+            case .wishlist: "gift"
+            case .ajustes: "gearshape"
+            }
+        }
+    }
+
+    let seccion: Seccion
+
+    var body: some View {
+        switch seccion {
+        case .meses:
+            MesesView()
+        case .wishlist:
+            NavigationStack {
+                WishlistView().navigationTitle("Wishlist")
+            }
+        case .ajustes:
+            AjustesView()
+        }
+    }
+}
+
+/// Menú flotante que se despliega sobre la pestaña "Más".
+struct MenuMas: View {
+    let actual: MasView.Seccion?
+    let elegir: (MasView.Seccion) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ForEach(MasView.Seccion.allCases) { s in
+                Button { elegir(s) } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: s.icono)
+                            .font(.body.weight(.semibold))
+                            .frame(width: 24)
+                        Text(s.titulo).font(.body.weight(.semibold))
+                        Spacer()
+                        if s == actual {
+                            Image(systemName: "checkmark").font(.footnote.weight(.bold))
+                        }
+                    }
+                    .foregroundStyle(Tema.tinta)
+                    .padding(.horizontal, 18)
+                    .frame(height: 52)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                if s != MasView.Seccion.allCases.last { Divider().padding(.leading, 56) }
+            }
+        }
+        .frame(width: 230)
+        .background(Color.fondo, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Tema.tinta.opacity(0.08)))
+        .shadow(color: .black.opacity(0.18), radius: 24, y: 10)
     }
 }
