@@ -323,17 +323,6 @@ private struct GraficoCategorias: View {
                                 guard let p = porcion(en: punto, marco: marco) else { return }
                                 seleccion = seleccion.map(porcion(de:)) == p ? nil : p
                             }
-                            // Mantener pulsado y deslizar recorre las porciones (también las pequeñas).
-                            .gesture(
-                                LongPressGesture(minimumDuration: 0.25)
-                                    .sequenced(before: DragGesture(minimumDistance: 0))
-                                    .onChanged { valor in
-                                        guard case .second(true, let arrastre?) = valor,
-                                              let p = porcion(en: arrastre.location, marco: marco),
-                                              p != seleccion.map(porcion(de:)) else { return }
-                                        seleccion = p
-                                    }
-                            )
                     }
                 }
                 .overlay { centro }
