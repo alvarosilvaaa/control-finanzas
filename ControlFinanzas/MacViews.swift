@@ -51,6 +51,13 @@ struct MacContentView: View {
             // En Mac la app abre rápido: se actualiza sin pantalla de arranque.
             if almacen.configurado { await almacen.recargar() }
         }
+        // Al volver a la app se actualiza, para ver lo que hayas cambiado en el iPhone.
+        // Como mucho una vez por minuto, para no recargar cada vez que cambias de ventana.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            guard almacen.configurado, !almacen.cargando,
+                  Date().timeIntervalSince(almacen.ultimaActualizacion ?? .distantPast) > 60 else { return }
+            Task { await almacen.recargar() }
+        }
     }
 
     @ViewBuilder private var detalle: some View {
