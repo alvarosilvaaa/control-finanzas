@@ -128,6 +128,7 @@ struct TablaGastos: View {
     @State private var seleccion = Set<Gasto.ID>()
     @State private var busqueda = ""
     @State private var mes: Mes? = .actual
+    @State private var orden = OrdenGastos.recientes
     @State private var editando: Gasto?
     @State private var aBorrar: [Gasto] = []
     @State private var trabajando = false
@@ -146,7 +147,7 @@ struct TablaGastos: View {
             .filter(incluir)
             .filter { mes == nil || mes!.contiene($0.fecha) }
             .filter { t.isEmpty || $0.concepto.lowercased().contains(t) || $0.categoria.lowercased().contains(t) }
-            .sorted { $0.fecha > $1.fecha }
+            .ordenados(orden)
     }
 
     private func gastos(_ ids: Set<Gasto.ID>) -> [Gasto] {
@@ -162,17 +163,16 @@ struct TablaGastos: View {
                     ContentUnavailableView("No hay gastos", systemImage: "tray")
                         .listRowSeparator(.hidden)
                 }
-                ForEach(gastosPorDia(filas), id: \.dia) { grupo in
-                    Section {
-                        ForEach(grupo.gastos) { g in
-                            FilaGasto(gasto: g)
-                                .padding(.vertical, 6)
-                                .tag(g.id)
-                                .listRowSeparator(.hidden)
+                if orden == .recientes {
+                    ForEach(gastosPorDia(filas), id: \.dia) { grupo in
+                        Section {
+                            ForEach(grupo.gastos) { filaMac($0, conFecha: false) }
+                        } header: {
+                            EncabezadoDia(dia: grupo.dia, total: grupo.gastos.reduce(0) { $0 + $1.importe })
                         }
-                    } header: {
-                        EncabezadoDia(dia: grupo.dia, total: grupo.gastos.reduce(0) { $0 + $1.importe })
                     }
+                } else {
+                    ForEach(filas) { filaMac($0, conFecha: true) }
                 }
             }
             .listStyle(.plain)
@@ -205,6 +205,17 @@ struct TablaGastos: View {
         .navigationTitle(titulo)
         .navigationSubtitle("\(filas.count) gastos · \(Formato.eur(filas.reduce(0) { $0 + $1.importe }))")
         .toolbar {
+            ToolbarItem {
+                Menu {
+                    Picker("Ordenar", selection: $orden) {
+                        ForEach(OrdenGastos.allCases) { Label($0.rawValue, systemImage: $0.icono).tag($0) }
+                    }
+                    .pickerStyle(.inline)
+                } label: {
+                    Label("Ordenar", systemImage: "arrow.up.arrow.down")
+                }
+                .help("Ordenar: \(orden.rawValue.lowercased())")
+            }
             if mostrarFiltroMes {
                 ToolbarItem {
                     Picker("Mes", selection: $mes) {
@@ -234,6 +245,13 @@ struct TablaGastos: View {
             Text("Se eliminará también de tu hoja de Google. Total: \(Formato.eur(aBorrar.reduce(0) { $0 + $1.importe }))")
         }
         .alertaError($error)
+    }
+
+    private func filaMac(_ g: Gasto, conFecha: Bool) -> some View {
+        FilaGasto(gasto: g, conFecha: conFecha)
+            .padding(.vertical, 6)
+            .tag(g.id)
+            .listRowSeparator(.hidden)
     }
 
     private func cambiarCategoria(_ lista: [Gasto], a categoria: String) async {

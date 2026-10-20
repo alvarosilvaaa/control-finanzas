@@ -6,6 +6,7 @@ struct MovimientosView: View {
     @State private var busqueda = ""
     @State private var categoria: String?
     @State private var metodo: String?
+    @State private var orden = OrdenGastos.recientes
 
     private var filtrados: [Gasto] {
         let t = busqueda.trimmingCharacters(in: .whitespaces).lowercased()
@@ -14,11 +15,12 @@ struct MovimientosView: View {
             .filter { categoria == nil || $0.categoria == categoria }
             .filter { metodo == nil || Formato.metodo($0.metodo) == metodo }
             .sorted { $0.fecha > $1.fecha }
+            .ordenados(orden)
     }
 
     var body: some View {
         NavigationStack {
-            ListaGastos(gastos: filtrados)
+            ListaGastos(gastos: filtrados, porDia: orden == .recientes)
                 .navigationTitle("Movimientos")
                 .refreshable { await almacen.recargar() }
                 .safeAreaInset(edge: .bottom) { barraBusqueda }
@@ -50,19 +52,33 @@ struct MovimientosView: View {
             .cristal(Capsule())
 
             Menu {
-                Picker("Categoría", selection: $categoria) {
-                    Text("Todas las categorías").tag(String?.none)
+                // Orden arriba, discreto; categoría y método como submenús para que el menú sea corto.
+                Picker("Ordenar", selection: $orden) {
+                    ForEach(OrdenGastos.allCases) { Label($0.rawValue, systemImage: $0.icono).tag($0) }
+                }
+                .pickerStyle(.inline)
+                Picker(selection: $categoria) {
+                    Text("Todas").tag(String?.none)
                     ForEach(almacen.categorias + ["Sin clasificar"], id: \.self) { Text($0).tag(String?.some($0)) }
+                } label: {
+                    Label("Categoría", systemImage: "square.grid.2x2")
+                    Text(categoria ?? "Todas")
                 }
-                Picker("Método", selection: $metodo) {
-                    Text("Todos los métodos").tag(String?.none)
+                .pickerStyle(.menu)
+                Picker(selection: $metodo) {
+                    Text("Todos").tag(String?.none)
                     ForEach(["Tarjeta", "Bizum", "Efectivo"], id: \.self) { Text($0).tag(String?.some($0)) }
+                } label: {
+                    Label("Método", systemImage: "creditcard")
+                    Text(metodo ?? "Todos")
                 }
-                if categoria != nil || metodo != nil {
-                    Button("Quitar filtros", role: .destructive) { categoria = nil; metodo = nil }
+                .pickerStyle(.menu)
+                if categoria != nil || metodo != nil || orden != .recientes {
+                    Divider()
+                    Button("Quitar filtros", role: .destructive) { categoria = nil; metodo = nil; orden = .recientes }
                 }
             } label: {
-                Image(systemName: categoria == nil && metodo == nil
+                Image(systemName: categoria == nil && metodo == nil && orden == .recientes
                       ? "line.3.horizontal.decrease" : "line.3.horizontal.decrease.circle.fill")
                     .font(.body.weight(.semibold))
                     .foregroundStyle(Tema.tinta)
@@ -72,6 +88,21 @@ struct MovimientosView: View {
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 8)
+    }
+}
+
+/// Cómo ordenar la lista de movimientos.
+enum OrdenGastos: String, CaseIterable, Identifiable {
+    case recientes = "Más recientes"
+    case importe = "Mayor importe"
+    var id: String { rawValue }
+    var icono: String { self == .recientes ? "calendar" : "eurosign" }
+
+    func ordenar(_ gastos: [Gasto]) -> [Gasto] {
+        switch self {
+        case .recientes: gastos.sorted { $0.fecha > $1.fecha }
+        case .importe: gastos.sorted { $0.importe != $1.importe ? $0.importe > $1.importe : $0.fecha > $1.fecha }
+        }
     }
 }
 
@@ -85,6 +116,8 @@ func gastosPorDia(_ gastos: [Gasto]) -> [(dia: Date, gastos: [Gasto])] {
 /// Lista de gastos por día, sin cajas ni separadores. Al tocar uno se abre para editarlo.
 struct ListaGastos: View {
     let gastos: [Gasto]
+    /// `false` para una lista plana (p. ej. ordenada por importe), con la fecha en cada fila.
+    var porDia = true
     @State private var editando: Gasto?
 
     var body: some View {
@@ -94,19 +127,16 @@ struct ListaGastos: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
             }
-            ForEach(gastosPorDia(gastos), id: \.dia) { grupo in
-                Section {
-                    ForEach(grupo.gastos) { g in
-                        Button { editando = g } label: { FilaGasto(gasto: g) }
-                            .buttonStyle(.plain)
-                            .disabled(g.pendiente)
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
+            if porDia {
+                ForEach(gastosPorDia(gastos), id: \.dia) { grupo in
+                    Section {
+                        ForEach(grupo.gastos) { fila($0, conFecha: false) }
+                    } header: {
+                        EncabezadoDia(dia: grupo.dia, total: grupo.gastos.reduce(0) { $0 + $1.importe })
                     }
-                } header: {
-                    EncabezadoDia(dia: grupo.dia, total: grupo.gastos.reduce(0) { $0 + $1.importe })
                 }
+            } else {
+                ForEach(gastos) { fila($0, conFecha: true) }
             }
         }
         .listStyle(.plain)
@@ -116,6 +146,21 @@ struct ListaGastos: View {
         .estiloLimpio()
         .sheet(item: $editando) { EditarGastoView(gasto: $0) }
     }
+}
+
+extension ListaGastos {
+    private func fila(_ g: Gasto, conFecha: Bool) -> some View {
+        Button { editando = g } label: { FilaGasto(gasto: g, conFecha: conFecha) }
+            .buttonStyle(.plain)
+            .disabled(g.pendiente)
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
+    }
+}
+
+extension Array where Element == Gasto {
+    func ordenados(_ orden: OrdenGastos) -> [Gasto] { orden.ordenar(self) }
 }
 
 /// "Hoy                20,50 €" · "martes, 14 oct        19,60 €"
