@@ -67,6 +67,7 @@ struct PresupuestoView: View {
                     }
                 }
             }
+            .estiloLimpio()
             .navigationTitle("Presupuesto")
             .tituloEnLinea()
             .toolbar {
@@ -134,6 +135,7 @@ private struct NuevoIngresoView: View {
                 DatePicker("Fecha", selection: $fecha, in: mes.inicio...min(mes.fin.addingTimeInterval(-1), Date()),
                            displayedComponents: .date)
             }
+            .estiloLimpio()
             .navigationTitle("Ingreso extra")
             .tituloEnLinea()
             .toolbar {

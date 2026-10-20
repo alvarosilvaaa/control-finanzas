@@ -44,7 +44,7 @@ struct ResumenView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, Sistema.esMac ? 16 : 90)
             }
-            .background(Color.fondoAgrupado)
+            .background(Color.fondo)
             .navigationTitle("Finanzas")
             .refreshable { await almacen.recargar() }
             #if os(iOS)
@@ -209,7 +209,7 @@ private struct GraficoAcumulado: View {
                 Chart {
                     ForEach(r.acumuladoPorDia, id: \.dia) { punto in
                         AreaMark(x: .value("Día", punto.dia), y: .value("Gastado", punto.total))
-                            .foregroundStyle(Tema.tinta.opacity(0.15).gradient)
+                            .foregroundStyle(Tema.tinta.opacity(0.06).gradient)
                         LineMark(x: .value("Día", punto.dia), y: .value("Gastado", punto.total),
                                  series: .value("Serie", "Real"))
                             .foregroundStyle(Tema.tinta)
@@ -312,7 +312,7 @@ private struct AvisoSinClasificar: View {
                 Image(systemName: "chevron.right").font(.caption.bold()).foregroundStyle(.tertiary)
             }
             .padding(14)
-            .background(Color.fondoTarjeta, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .padding(.horizontal, -14)
         }
         .buttonStyle(.plain)
     }

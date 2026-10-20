@@ -109,6 +109,7 @@ struct NuevoMovimientoView: View {
                     }
                 }
             }
+            .estiloLimpio()
             .navigationTitle(tipo == .gasto ? "Nuevo gasto" : "Ingreso extra")
             .tituloEnLinea()
             .toolbar {

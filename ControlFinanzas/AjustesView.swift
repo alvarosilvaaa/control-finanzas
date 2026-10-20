@@ -64,6 +64,7 @@ struct AjustesView: View {
                     }
                 }
             }
+            .estiloLimpio()
             .navigationTitle("Ajustes")
             .hojaMac(ancho: 520, alto: 520)
             .ocultarTecladoFacil()

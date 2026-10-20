@@ -13,7 +13,7 @@ struct MacResumenView: View {
     var body: some View {
         let r = almacen.resumen(de: mes)
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 36) {
                 if let error = almacen.error { AvisoError(mensaje: error) }
 
                 FilaIndicadores(resumen: r) { editandoPresupuesto = true }
@@ -27,7 +27,7 @@ struct MacResumenView: View {
                 } else {
                     Panel(titulo: "Gasto acumulado") { GraficoAcumuladoMac(resumen: r) }
 
-                    HStack(alignment: .top, spacing: 20) {
+                    HStack(alignment: .top, spacing: 48) {
                         Panel(titulo: "Por categoría") { CategoriasMac(resumen: r) }
                         Panel(titulo: "Últimos movimientos", accion: ("Ver todos", { navegacion.seccion = .movimientos })) {
                             UltimosMovimientos(gastos: Array(r.gastos.prefix(10))) { editando = $0 }
@@ -35,11 +35,12 @@ struct MacResumenView: View {
                     }
                 }
             }
-            .padding(24)
+            .padding(.horizontal, 36)
+            .padding(.vertical, 24)
             .frame(maxWidth: 1400)
             .frame(maxWidth: .infinity)
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(Color.fondo)
         .navigationTitle(mes.nombre)
         .navigationSubtitle(mes == .actual ? "Mes en curso" : "Resumen")
         .toolbar {
@@ -80,7 +81,7 @@ private struct Panel<Contenido: View>: View {
         VStack(alignment: .leading, spacing: 14) {
             if let titulo {
                 HStack {
-                    Text(titulo).font(.headline)
+                    Text(titulo).font(.title3.bold())
                     Spacer()
                     if let accion {
                         Button(action: accion.1) {
@@ -93,10 +94,8 @@ private struct Panel<Contenido: View>: View {
             }
             contenido
         }
-        .padding(18)
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color(nsColor: .separatorColor)))
     }
 }
 
@@ -107,7 +106,7 @@ private struct FilaIndicadores: View {
     var body: some View {
         let r = resumen
         let colorProgreso: Color = r.progreso >= 1 ? Tema.alerta : Tema.tinta
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 28) {
             Indicador(titulo: r.restante >= 0 ? "Te quedan" : "Te has pasado",
                       valor: Formato.eur(abs(r.restante)), grande: true,
                       color: r.restante >= 0 ? .primary : .red) {
@@ -175,10 +174,8 @@ private struct Indicador<Detalle: View>: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .padding(16)
+        .padding(.vertical, 4)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color(nsColor: .separatorColor)))
         .contentShape(Rectangle())
     }
 }
@@ -196,7 +193,7 @@ private struct GraficoAcumuladoMac: View {
         Chart {
             ForEach(puntos, id: \.dia) { p in
                 AreaMark(x: .value("Día", p.dia), y: .value("Gastado", p.total))
-                    .foregroundStyle(Tema.tinta.opacity(0.12).gradient)
+                    .foregroundStyle(Tema.tinta.opacity(0.06).gradient)
                 LineMark(x: .value("Día", p.dia), y: .value("Gastado", p.total), series: .value("Serie", "Real"))
                     .foregroundStyle(Tema.tinta)
                     .lineStyle(StrokeStyle(lineWidth: 2.5))
@@ -311,7 +308,7 @@ private struct CategoriasMac: View {
                     navegacion.seccion = .categoria(d.categoria)
                 } label: {
                     HStack(spacing: 10) {
-                        IconoCategoria(categoria: d.categoria, tamaño: 20)
+                        IconoCategoria(categoria: d.categoria, tamaño: 26)
                         Text(d.categoria).lineLimit(1).fixedSize()
                         Spacer(minLength: 8)
                         Text("\(Int((d.total / total * 100).rounded()))%")
@@ -344,9 +341,9 @@ private struct UltimosMovimientos: View {
             ForEach(gastos) { g in
                 Button { editar(g) } label: {
                     HStack(spacing: 10) {
-                        IconoCategoria(categoria: g.categoria, tamaño: 24)
+                        IconoCategoria(categoria: g.categoria, concepto: g.concepto, tamaño: 34)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(g.concepto.trimmingCharacters(in: .whitespaces)).lineLimit(1)
+                            Text(g.concepto.trimmingCharacters(in: .whitespaces)).fontWeight(.semibold).lineLimit(1)
                             Text("\(g.categoria) · \(Formato.metodo(g.metodo))")
                                 .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                         }
@@ -358,12 +355,11 @@ private struct UltimosMovimientos: View {
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }
-                    .padding(.vertical, 7)
+                    .padding(.vertical, 8)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .disabled(g.pendiente)
-                if g.id != gastos.last?.id { Divider().padding(.leading, 34) }
             }
         }
         .font(.callout)

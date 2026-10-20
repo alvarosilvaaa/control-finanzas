@@ -106,6 +106,14 @@ struct Mes: Hashable, Comparable, Identifiable {
         return f.string(from: inicio).capitalized(with: f.locale)
     }
 
+    /// Solo el mes, en minúscula: "octubre".
+    var nombreMes: String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "es_ES")
+        f.dateFormat = "LLLL"
+        return f.string(from: inicio)
+    }
+
     var nombreCorto: String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "es_ES")

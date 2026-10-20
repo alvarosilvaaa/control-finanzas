@@ -46,13 +46,13 @@ struct MovimientosView: View {
     }
 }
 
-/// Lista de gastos agrupada por día. Al tocar uno se abre para editarlo.
+/// Lista de gastos agrupada por mes, sin cajas ni separadores. Al tocar uno se abre para editarlo.
 struct ListaGastos: View {
     let gastos: [Gasto]
     @State private var editando: Gasto?
 
-    private var porDia: [(dia: Date, gastos: [Gasto])] {
-        Dictionary(grouping: gastos) { Calendar.current.startOfDay(for: $0.fecha) }
+    private var porMes: [(mes: Mes, gastos: [Gasto])] {
+        Dictionary(grouping: gastos) { Mes($0.fecha) }
             .map { ($0.key, $0.value.sorted { $0.fecha > $1.fecha }) }
             .sorted { $0.0 > $1.0 }
     }
@@ -62,24 +62,46 @@ struct ListaGastos: View {
             if gastos.isEmpty {
                 ContentUnavailableView("No hay gastos", systemImage: "tray")
                     .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
-            ForEach(porDia, id: \.dia) { grupo in
+            ForEach(porMes, id: \.mes) { grupo in
                 Section {
                     ForEach(grupo.gastos) { g in
                         Button { editando = g } label: { FilaGasto(gasto: g) }
-                            .foregroundStyle(.primary)
+                            .buttonStyle(.plain)
                             .disabled(g.pendiente)
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
                     }
                 } header: {
-                    HStack {
-                        Text(grupo.dia.formatted(Formato.diaLargo).capitalized)
-                        Spacer()
-                        Text(Formato.eur(grupo.gastos.reduce(0) { $0 + $1.importe }))
-                    }
+                    EncabezadoMes(mes: grupo.mes, total: grupo.gastos.reduce(0) { $0 + $1.importe })
                 }
             }
         }
+        .listStyle(.plain)
+        .estiloLimpio()
         .sheet(item: $editando) { EditarGastoView(gasto: $0) }
+    }
+}
+
+/// "octubre                356,54 €", en negrita y sin adornos.
+struct EncabezadoMes: View {
+    let mes: Mes
+    let total: Double
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(mes == .actual || mes.año == Mes.actual.año ? mes.nombreMes : mes.nombre.lowercased())
+                .font(.title3.bold())
+                .foregroundStyle(Tema.tinta)
+            Spacer()
+            Text(Formato.eur(total)).font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+        }
+        .textCase(nil)
+        .padding(.top, 18)
+        .padding(.bottom, 4)
+        .padding(.horizontal, 4)
     }
 }
 
@@ -87,19 +109,25 @@ struct FilaGasto: View {
     let gasto: Gasto
 
     var body: some View {
-        HStack(spacing: 12) {
-            IconoCategoria(categoria: gasto.categoria)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(gasto.concepto.trimmingCharacters(in: .whitespaces)).font(.body).lineLimit(1)
-                Text("\(gasto.categoria) · \(Formato.metodo(gasto.metodo)) · \(gasto.fecha.formatted(Formato.hora))")
-                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+        HStack(spacing: 14) {
+            IconoCategoria(categoria: gasto.categoria, concepto: gasto.concepto, tamaño: 44)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(gasto.concepto.trimmingCharacters(in: .whitespaces))
+                    .font(.body.weight(.semibold)).lineLimit(1)
+                Text(detalle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
             }
-            Spacer()
+            Spacer(minLength: 8)
+            if gasto.pendiente { ProgressView().controlSize(.mini) }
             Text(Formato.eur(gasto.importe)).font(.body.weight(.semibold)).monospacedDigit()
-            if gasto.pendiente {
-                ProgressView().controlSize(.mini)
-            }
         }
+        .contentShape(Rectangle())
+    }
+
+    /// "20 oct · Limpieza · Bizum"
+    private var detalle: String {
+        let fecha = gasto.fecha.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "es_ES")))
+        return [fecha, gasto.categoria == "Sin clasificar" ? "Sin clasificar" : gasto.categoria, Formato.metodo(gasto.metodo)]
+            .joined(separator: " · ")
     }
 }
 

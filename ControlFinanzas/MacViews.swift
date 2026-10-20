@@ -27,7 +27,7 @@ struct MacContentView: View {
                     Section("Categorías · \(Mes.actual.nombre)") {
                         ForEach(mesActual.porCategoria, id: \.categoria) { c in
                             HStack {
-                                IconoCategoria(categoria: c.categoria, tamaño: 20)
+                                IconoCategoria(categoria: c.categoria, tamaño: 22)
                                 Text(c.categoria)
                                 Spacer()
                                 Text(Formato.eurSinDecimales(c.total)).foregroundStyle(.secondary).monospacedDigit()
@@ -165,7 +165,7 @@ struct TablaGastos: View {
 
             TableColumn("Concepto", value: \.concepto) { g in
                 HStack(spacing: 8) {
-                    IconoCategoria(categoria: g.categoria, tamaño: 20)
+                    IconoCategoria(categoria: g.categoria, concepto: g.concepto, tamaño: 24)
                     Text(g.concepto.trimmingCharacters(in: .whitespaces))
                     if g.pendiente { ProgressView().controlSize(.mini) }
                 }
@@ -185,6 +185,10 @@ struct TablaGastos: View {
             }
             .width(min: 80, ideal: 100)
         }
+        .tableStyle(.inset)
+        .alternatingRowBackgrounds(.disabled)
+        .scrollContentBackground(.hidden)
+        .background(Color.fondo)
         .contextMenu(forSelectionType: Gasto.ID.self) { ids in
             let lista = gastos(ids)
             Button("Editar…") { editando = lista.first }

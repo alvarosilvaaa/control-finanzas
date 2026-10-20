@@ -73,29 +73,47 @@ struct EstiloCategoria {
     }
 }
 
+/// Círculo gris suave con el símbolo de la categoría. Si el gasto no tiene categoría, muestra la
+/// inicial del concepto (como hacen las apps de banca cuando no hay logo).
 struct IconoCategoria: View {
     let categoria: String
-    var tamaño: CGFloat = 36
+    var concepto: String? = nil
+    var tamaño: CGFloat = 40
 
     var body: some View {
-        let sinClasificar = categoria == "Sin clasificar"
-        Image(systemName: EstiloCategoria.de(categoria).icono)
-            .font(.system(size: tamaño * 0.45, weight: .semibold))
-            .foregroundStyle(sinClasificar ? Tema.tinta : Color.fondo)
-            .frame(width: tamaño, height: tamaño)
-            .background(sinClasificar ? AnyShapeStyle(Tema.tinta.opacity(0.1)) : AnyShapeStyle(Tema.tinta.opacity(0.85)),
-                        in: RoundedRectangle(cornerRadius: tamaño * 0.3, style: .continuous))
+        let inicial = concepto?.trimmingCharacters(in: .whitespaces).first.map { String($0).uppercased() }
+        Group {
+            if categoria == "Sin clasificar", let inicial {
+                Text(inicial).font(.system(size: tamaño * 0.42, weight: .semibold, design: .rounded))
+            } else {
+                Image(systemName: EstiloCategoria.de(categoria).icono)
+                    .font(.system(size: tamaño * 0.4, weight: .medium))
+            }
+        }
+        .foregroundStyle(categoria == "Sin clasificar" ? Color.secondary : Tema.tinta)
+        .frame(width: tamaño, height: tamaño)
+        .background(Tema.tinta.opacity(0.07), in: Circle())
     }
 }
 
+/// Bloque de contenido sin caja: se separa del resto solo con espacio.
 struct Tarjeta<Contenido: View>: View {
     @ViewBuilder var contenido: Contenido
 
     var body: some View {
         contenido
-            .padding(16)
+            .padding(.vertical, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.fondoTarjeta, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+}
+
+extension View {
+    /// Formularios y listas sin cajas: fondo liso y filas sin fondo propio.
+    func estiloLimpio() -> some View {
+        self
+            .scrollContentBackground(.hidden)
+            .background(Color.fondo)
+            .listRowBackground(Color.clear)
     }
 }
 

@@ -101,6 +101,7 @@ struct GestionFrecuentesView: View {
                     }
                 }
             }
+            .estiloLimpio()
             .navigationTitle("Gastos frecuentes")
             .tituloEnLinea()
             .toolbar {
@@ -206,6 +207,7 @@ struct EditarFrecuenteView: View {
                     }
                 }
             }
+            .estiloLimpio()
             .navigationTitle(esNuevo ? "Nuevo frecuente" : "Editar frecuente")
             .tituloEnLinea()
             .toolbar {

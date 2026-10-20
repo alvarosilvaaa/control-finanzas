@@ -29,6 +29,9 @@ struct MesesView: View {
                     }
                 }
             }
+            .listStyle(.plain)
+            .listRowSeparator(.hidden)
+            .estiloLimpio()
             .navigationTitle("Meses")
             .refreshable { await almacen.recargar() }
         }
@@ -124,6 +127,9 @@ struct ResumenMensualView: View {
                 }
             }
         }
+        .listStyle(.plain)
+        .listRowSeparator(.hidden)
+        .estiloLimpio()
         .navigationTitle(mes.nombre)
         .tituloEnLinea()
     }

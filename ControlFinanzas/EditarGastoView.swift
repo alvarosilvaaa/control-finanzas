@@ -121,6 +121,7 @@ struct EditarGastoView: View {
                         .frame(maxWidth: .infinity)
                 }
             }
+            .estiloLimpio()
             .navigationTitle("Editar gasto")
             .tituloEnLinea()
             .toolbar {
