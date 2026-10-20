@@ -13,8 +13,9 @@ struct AhorroView: View {
                 .refreshable { await almacen.recargar() }
         }
         #else
-        contenido
-            .navigationTitle("Ahorro")
+        NavigationStack {
+            contenido
+                .navigationTitle("Ahorro")
             .navigationSubtitle(Mes.actual.nombre)
             .toolbar {
                 ToolbarItem { BotonRecargar() }
@@ -23,6 +24,7 @@ struct AhorroView: View {
                         .help("Añadir un límite por categoría")
                 }
             }
+        }
         #endif
     }
 
@@ -104,6 +106,28 @@ private struct FilaConsejo: View {
     private var color: Color { consejo.tipo == .alerta ? Tema.alerta : Tema.tinta }
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let detalle = consejo.detalle {
+                NavigationLink { DetalleConsejo(detalle: detalle) } label: { cabecera(conFlecha: true) }
+                    .buttonStyle(.plain)
+            } else {
+                cabecera(conFlecha: false)
+            }
+            if let categoria = consejo.limiteSugerido {
+                Button { ponerLimite(categoria) } label: {
+                    Text("Poner límite a \(categoria)")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 12).padding(.vertical, 6)
+                        .background(Tema.tinta.opacity(0.07), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 58)
+            }
+        }
+        .padding(.vertical, 10)
+    }
+
+    private func cabecera(conFlecha: Bool) -> some View {
         HStack(alignment: .top, spacing: 14) {
             Image(systemName: consejo.icono)
                 .font(.system(size: 17, weight: .semibold))
@@ -114,20 +138,45 @@ private struct FilaConsejo: View {
                 Text(consejo.titulo).font(.body.weight(.semibold)).foregroundStyle(color)
                 Text(consejo.texto).font(.subheadline).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                if let categoria = consejo.limiteSugerido {
-                    Button { ponerLimite(categoria) } label: {
-                        Text("Poner límite a \(categoria)")
-                            .font(.subheadline.weight(.semibold))
-                            .padding(.horizontal, 12).padding(.vertical, 6)
-                            .background(Tema.tinta.opacity(0.07), in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 4)
-                }
             }
             Spacer(minLength: 0)
+            if conFlecha {
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .frame(height: 22)
+            }
         }
-        .padding(.vertical, 10)
+        .contentShape(Rectangle())
+    }
+}
+
+/// Gastos a los que se refiere un consejo, con su total. Se mantiene al día si se edita alguno.
+private struct DetalleConsejo: View {
+    let detalle: Consejo.Detalle
+    @Environment(Almacen.self) private var almacen
+
+    var body: some View {
+        #if os(macOS)
+        TablaGastos(titulo: detalle.titulo, mostrarFiltroMes: false, incluir: detalle.incluir)
+        #else
+        let gastos = almacen.datos.gastos.filter(detalle.incluir)
+        ListaGastos(gastos: gastos)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                HStack {
+                    Text("\(gastos.count) \(gastos.count == 1 ? "gasto" : "gastos")")
+                    Spacer()
+                    Text(Formato.eur(gastos.reduce(0) { $0 + $1.importe })).monospacedDigit()
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 8)
+                .background(Color.fondo)
+            }
+            .navigationTitle(detalle.titulo)
+            .tituloEnLinea()
+        #endif
     }
 }
 
