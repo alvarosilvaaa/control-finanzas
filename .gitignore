@@ -1,0 +1,11 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+
+# Secretos locales (token del Apps Script)
+*.local.txt
