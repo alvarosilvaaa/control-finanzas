@@ -141,13 +141,16 @@ function nuevoGasto(req) {
   const categoria = String(req.categoria || 'Sin clasificar').trim();
   const metodo = String(req.metodo || '').trim();
   const importeTexto = String(importe).replace('.', ',');
+  // Fecha elegida en la app (opcional). Si no llega, se usa la del envío.
+  const fecha = req.fecha ? new Date(req.fecha) : null;
+  if (fecha && isNaN(fecha)) throw new Error('Fecha no válida');
 
   const ss = SpreadsheetApp.getActive();
   const urlFormulario = ss.getFormUrl();
 
   if (!urlFormulario) {
     // Sin formulario vinculado: se escribe directamente en la hoja de respuestas.
-    ss.getSheetByName(HOJA_RESPUESTAS).appendRow([new Date(), importeTexto, concepto, categoria, metodo]);
+    ss.getSheetByName(HOJA_RESPUESTAS).appendRow([fecha || new Date(), importeTexto, concepto, categoria, metodo]);
     return;
   }
 
@@ -162,7 +165,24 @@ function nuevoGasto(req) {
     else if (titulo.includes('tarjeta') || titulo.includes('metodo')) valor = metodo;
     if (valor !== null && valor !== '') respuesta.withItemResponse(crearRespuesta(item, valor));
   });
-  respuesta.submit();
+  const enviada = respuesta.submit();
+
+  // El formulario siempre pone la hora del envío. Si se eligió otra fecha,
+  // se espera a que la respuesta aparezca en la hoja y se le cambia la marca temporal.
+  if (fecha && Math.abs(fecha.getTime() - enviada.getTimestamp().getTime()) > 60 * 1000) {
+    const req2 = { fechaOriginal: enviada.getTimestamp().toISOString() };
+    for (let intento = 0; intento < 20; intento++) {
+      SpreadsheetApp.flush();
+      try {
+        const { hoja, fila, col } = localizarRespuesta(req2);
+        hoja.getRange(fila, col.fecha).setValue(fecha);
+        return;
+      } catch (_) {
+        Utilities.sleep(500);
+      }
+    }
+    throw new Error('El gasto se ha guardado con la fecha de hoy: no se pudo cambiar la fecha. Edítalo para corregirla.');
+  }
 }
 
 /**

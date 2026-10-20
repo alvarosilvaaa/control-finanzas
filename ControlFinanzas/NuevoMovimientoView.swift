@@ -26,6 +26,8 @@ struct NuevoMovimientoView: View {
     @State private var categoria = ""
     @State private var metodo = Metodo.bizum
     @State private var fechaIngreso = Date()
+    /// `nil` mientras no se toque: el gasto se guarda con la hora del momento de guardar.
+    @State private var fechaGasto: Date?
     @State private var guardando = false
     @State private var error: String?
     @FocusState private var campo: Campo?
@@ -125,6 +127,22 @@ struct NuevoMovimientoView: View {
             }
         }
 
+        Section {
+            DatePicker("Fecha", selection: Binding(get: { fechaGasto ?? Date() }, set: { fechaGasto = $0 }),
+                       in: ...Date())
+            HStack(spacing: 8) {
+                ForEach([("Hoy", 0), ("Ayer", -1), ("Anteayer", -2)], id: \.1) { nombre, dias in
+                    let seleccionado = dias == 0 ? fechaGasto == nil
+                        : fechaGasto.map { Calendar.current.isDate($0, inSameDayAs: diaRelativo(dias)) } ?? false
+                    Chip(texto: nombre, icono: "calendar", color: .accentColor, seleccionado: seleccionado) {
+                        fechaGasto = dias == 0 ? nil : diaRelativo(dias)
+                    }
+                }
+            }
+        } footer: {
+            if fechaGasto != nil { Text("El gasto se guardará con esta fecha en tu hoja.") }
+        }
+
         Section("Categoría") {
             SelectorCategoria(categoria: $categoria)
         }
@@ -137,6 +155,11 @@ struct NuevoMovimientoView: View {
         }
     }
 
+    /// Mismo día que hoy desplazado `dias`, a la hora actual (así queda dentro de ese día).
+    private func diaRelativo(_ dias: Int) -> Date {
+        Calendar.current.date(byAdding: .day, value: dias, to: Date())!
+    }
+
     private func guardar() async {
         guard let importe else { return }
         guardando = true
@@ -146,7 +169,7 @@ struct NuevoMovimientoView: View {
             let texto = concepto.trimmingCharacters(in: .whitespaces)
             if tipo == .gasto {
                 try await almacen.añadirGasto(importe: importe, concepto: texto, categoria: categoriaFinal,
-                                              metodo: metodo.valorHoja)
+                                              metodo: metodo.valorHoja, fecha: fechaGasto)
             } else {
                 try await almacen.añadirIngreso(importe: importe, concepto: texto.isEmpty ? "Ingreso extra" : texto,
                                                 fecha: fechaIngreso)

@@ -30,9 +30,11 @@ struct API {
         try await enviar(["action": "datos"], como: DatosFinanzas.self)
     }
 
-    func nuevoGasto(importe: Double, concepto: String, categoria: String, metodo: String) async throws {
-        try await enviar(["action": "nuevoGasto", "importe": importe, "concepto": concepto,
-                          "categoria": categoria, "metodo": metodo])
+    func nuevoGasto(importe: Double, concepto: String, categoria: String, metodo: String, fecha: Date?) async throws {
+        var cuerpo: [String: Any] = ["action": "nuevoGasto", "importe": importe, "concepto": concepto,
+                                     "categoria": categoria, "metodo": metodo]
+        if let fecha { cuerpo["fecha"] = iso(fecha) }
+        try await enviar(cuerpo)
     }
 
     func editarGasto(_ original: Gasto, por nuevo: Gasto, regla: String?) async throws {

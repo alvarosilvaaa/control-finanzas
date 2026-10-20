@@ -103,16 +103,17 @@ final class Almacen {
         }
     }
 
-    func añadirGasto(importe: Double, concepto: String, categoria: String, metodo: String) async throws {
+    /// - Parameter fecha: `nil` para usar el momento actual.
+    func añadirGasto(importe: Double, concepto: String, categoria: String, metodo: String, fecha: Date? = nil) async throws {
         if modoDemo {
-            datos.gastos.append(Gasto(id: UUID().uuidString, fecha: Date(), importe: importe,
+            datos.gastos.append(Gasto(id: UUID().uuidString, fecha: fecha ?? Date(), importe: importe,
                                       concepto: concepto, categoria: categoria, metodo: metodo))
             return
         }
         guard let api else { throw ErrorAPI.sinConfigurar }
-        try await api.nuevoGasto(importe: importe, concepto: concepto, categoria: categoria, metodo: metodo)
+        try await api.nuevoGasto(importe: importe, concepto: concepto, categoria: categoria, metodo: metodo, fecha: fecha)
         // Se muestra al momento mientras la hoja recalcula sus fórmulas.
-        datos.gastos.append(Gasto(id: "local-\(UUID().uuidString)", fecha: Date(), importe: importe,
+        datos.gastos.append(Gasto(id: "local-\(UUID().uuidString)", fecha: fecha ?? Date(), importe: importe,
                                   concepto: concepto, categoria: categoria, metodo: metodo))
         Task {
             try? await Task.sleep(for: .seconds(3))
