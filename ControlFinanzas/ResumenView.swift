@@ -327,7 +327,6 @@ private struct GraficoCategorias: View {
                 }
                 .overlay { centro }
                 .frame(height: 220)
-                .animation(.snappy(duration: 0.25), value: seleccion)
                 .sensoryFeedback(.selection, trigger: seleccion)
 
                 VStack(spacing: 0) {
@@ -388,7 +387,6 @@ private struct GraficoCategorias: View {
         }
         .frame(width: 120, height: 120)
         .contentShape(Circle())
-        .transition(.opacity)
     }
 
     // MARK: - Lista
