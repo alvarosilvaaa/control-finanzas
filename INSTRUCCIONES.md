@@ -12,6 +12,8 @@
 5. Copia la **URL de la aplicación web** (termina en `/exec`).
 6. En Apps Script, ve a **⚙️ Configuración del proyecto → Propiedades del script → Añadir propiedad**:
    nombre `TOKEN`, valor: una contraseña larga (p. ej. 32 letras y números). Guarda.
+   Para el botón **Preguntar a Claude**, añade otra propiedad: nombre `ANTHROPIC_API_KEY`,
+   valor: tu clave de la API de Anthropic (se crea en console.anthropic.com → API Keys).
    El token no está en el código para que no se suba a GitHub. Tu token actual está en
    `AppsScript/token.local.txt` (este archivo no se sube).
 
