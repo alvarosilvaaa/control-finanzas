@@ -139,6 +139,7 @@ final class Almacen {
             try await api.editarGasto(original, por: nuevo, regla: regla)
         }
         if let i = datos.gastos.firstIndex(where: { $0.id == original.id }) { datos.gastos[i] = nuevo }
+        datos.aplicarRepartos()
         if let regla, modoDemo {
             datos.reglas.append(Regla(palabra: regla, categoria: nuevo.categoria))
             for i in datos.gastos.indices where datos.gastos[i].categoria == "Sin clasificar"
@@ -272,6 +273,44 @@ final class Almacen {
         guard let api else { throw ErrorAPI.sinConfigurar }
         try await api.fijarLimite(categoria: categoria, limite: limite)
         await recargar()
+    }
+
+    // MARK: - Repartos del piso
+
+    func reparto(de gasto: Gasto) -> Reparto? {
+        datos.repartos.first { $0.clave == gasto.clave && !$0.partes.isEmpty }
+    }
+
+    /// Gastos compartidos que aún no te han pagado, del más reciente al más antiguo.
+    var pendientesPiso: [(gasto: Gasto, reparto: Reparto)] {
+        datos.gastos.compactMap { g in reparto(de: g).flatMap { $0.saldado ? nil : (g, $0) } }
+            .sorted { $0.gasto.fecha > $1.gasto.fecha }
+    }
+
+    var teDeben: Double { Reparto.redondear(pendientesPiso.reduce(0) { $0 + $1.reparto.teDeben }) }
+
+    /// Gastos compartidos ya saldados, del más reciente al más antiguo.
+    var saldadosPiso: [(gasto: Gasto, reparto: Reparto)] {
+        datos.gastos.compactMap { g in reparto(de: g).flatMap { $0.saldado ? (g, $0) : nil } }
+            .sorted { $0.gasto.fecha > $1.gasto.fecha }
+    }
+
+    /// Guarda el reparto de un gasto (sin partes, lo quita).
+    func guardarReparto(_ gasto: Gasto, claveAnterior: String? = nil, partes: [Reparto.Parte], saldado: Bool) async throws {
+        if modoDemo {
+            datos.repartos.removeAll { $0.clave == gasto.clave || $0.clave == claveAnterior }
+            if !partes.isEmpty { datos.repartos.append(Reparto(clave: gasto.clave, partes: partes, saldado: saldado)) }
+            datos.aplicarRepartos()
+            return
+        }
+        guard let api else { throw ErrorAPI.sinConfigurar }
+        try await api.guardarReparto(gasto: gasto, claveAnterior: claveAnterior, partes: partes, saldado: saldado)
+        await recargar()
+    }
+
+    func marcarSaldado(_ gasto: Gasto, _ saldado: Bool) async throws {
+        guard let r = reparto(de: gasto) else { return }
+        try await guardarReparto(gasto, partes: r.partes, saldado: saldado)
     }
 
     // MARK: - Wishlist

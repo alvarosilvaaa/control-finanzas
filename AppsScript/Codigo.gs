@@ -4,7 +4,7 @@
  * La app habla con este script mediante peticiones POST con un cuerpo JSON:
  *   { "token": "...", "action": "datos" | "nuevoGasto" | "editarGasto" | "borrarGasto" | "nuevaRegla"
  *                               | "nuevoIngreso" | "borrarIngreso" | "fijarPresupuesto" | "fijarLimite"
- *                               | "guardarDeseo" | "borrarDeseo", ... }
+ *                               | "guardarDeseo" | "borrarDeseo" | "guardarReparto", ... }
  *
  * Los gastos nuevos se envían a través del mismo formulario de Google que usa
  * el atajo, así que entran por el mismo camino (Respuestas de formulario 1 → Gastos).
@@ -23,6 +23,8 @@ const HOJA_INGRESOS = 'Ingresos extra';
 const HOJA_FRECUENTES = 'Frecuentes';
 const HOJA_LIMITES = 'Límites';
 const HOJA_DESEOS = 'Wishlist';
+const HOJA_REPARTOS = 'Repartos';
+const CABECERAS_REPARTOS = ['Gasto', 'Concepto', 'Pagado', 'Partes', 'Te deben', 'Saldado'];
 const CABECERAS_DESEOS = ['Id', 'Nombre', 'Precio', 'Enlace', 'Nota', 'Prioridad', 'Comprado', 'Añadido'];
 const CABECERAS_FRECUENTES = ['Id', 'Concepto', 'Importe', 'Categoría', 'Método', 'Frecuencia', 'Día'];
 const PRESUPUESTO_POR_DEFECTO = 450;
@@ -80,6 +82,9 @@ function doPost(e) {
         return json({ ok: true });
       case 'borrarDeseo':
         conBloqueo(() => borrarDeseo(req));
+        return json({ ok: true });
+      case 'guardarReparto':
+        conBloqueo(() => guardarReparto(req));
         return json({ ok: true });
       default:
         return json({ ok: false, error: 'Acción desconocida: ' + req.action });
@@ -151,6 +156,7 @@ function leerDatos() {
     frecuentes: leerFrecuentes(),
     limites: leerLimites(),
     deseos: leerDeseos(),
+    repartos: leerRepartos(),
     presupuestoPorDefecto: PRESUPUESTO_POR_DEFECTO,
   };
 }
@@ -475,6 +481,56 @@ function borrarDeseo(req) {
   }
 }
 
+// ---------- Repartos del piso ----------
+// Cada fila dice qué parte de un gasto es compartida. "Gasto" es la marca temporal del gasto en
+// formato ISO (lo que lo identifica) y "Partes" una lista JSON: [{"importe": 5, "personas": 2}, …].
+
+function claveTexto(v) {
+  if (v instanceof Date && !isNaN(v)) return v.toISOString();
+  return String(v || '').trim();
+}
+
+function leerRepartos() {
+  const hoja = obtenerHoja(HOJA_REPARTOS, CABECERAS_REPARTOS);
+  if (hoja.getLastRow() < 2) return [];
+  return hoja.getRange(2, 1, hoja.getLastRow() - 1, CABECERAS_REPARTOS.length).getValues()
+    .map(f => {
+      let partes = [];
+      try { partes = JSON.parse(String(f[3] || '[]')); } catch (e) { partes = []; }
+      partes = (Array.isArray(partes) ? partes : [])
+        .map(p => ({ importe: aNumero(p.importe), personas: Math.max(1, Math.round(Number(p.personas) || 0)) }))
+        .filter(p => p.importe !== null && p.importe > 0 && p.personas >= 2);
+      return { clave: claveTexto(f[0]), partes: partes, saldado: String(f[5]).trim().toLowerCase() === 'sí' };
+    })
+    .filter(r => r.clave && r.partes.length);
+}
+
+/** Crea, cambia o (sin partes) quita el reparto de un gasto. claveAnterior sirve si cambió la fecha del gasto. */
+function guardarReparto(req) {
+  const clave = String(req.clave || '').trim();
+  if (!clave) throw new Error('Falta el gasto');
+  const buscar = String(req.claveAnterior || clave).trim();
+  const partes = (Array.isArray(req.partes) ? req.partes : [])
+    .map(p => ({ importe: aNumero(p.importe), personas: Math.round(Number(p.personas) || 0) }))
+    .filter(p => p.importe !== null && p.importe > 0 && p.personas >= 2);
+  const teDeben = partes.reduce((s, p) => s + p.importe - p.importe / p.personas, 0);
+  const fila = [clave, String(req.concepto || '').trim(), aNumero(req.pagado) || '', JSON.stringify(partes),
+                Math.round(teDeben * 100) / 100, req.saldado ? 'sí' : ''];
+
+  const hoja = obtenerHoja(HOJA_REPARTOS, CABECERAS_REPARTOS);
+  if (hoja.getLastRow() > 1) {
+    const claves = hoja.getRange(2, 1, hoja.getLastRow() - 1, 1).getValues();
+    for (let i = claves.length - 1; i >= 0; i--) {
+      if (claveTexto(claves[i][0]) === buscar || claveTexto(claves[i][0]) === clave) {
+        if (!partes.length) { hoja.deleteRow(i + 2); continue; }
+        hoja.getRange(i + 2, 1, 1, fila.length).setValues([fila]);
+        return;
+      }
+    }
+  }
+  if (partes.length) hoja.appendRow(fila);
+}
+
 // ---------- Utilidades ----------
 
 function crearRespuesta(item, valor) {
@@ -495,7 +551,7 @@ function obtenerHoja(nombre, cabeceras) {
     hoja = ss.insertSheet(nombre);
     hoja.getRange(1, 1, 1, cabeceras.length).setValues([cabeceras]).setFontWeight('bold');
     hoja.setFrozenRows(1);
-    if (nombre === HOJA_PRESUPUESTO) hoja.getRange('A:A').setNumberFormat('@');
+    if (nombre === HOJA_PRESUPUESTO || nombre === HOJA_REPARTOS) hoja.getRange('A:A').setNumberFormat('@');
   }
   return hoja;
 }

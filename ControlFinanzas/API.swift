@@ -40,7 +40,7 @@ struct API {
     func editarGasto(_ original: Gasto, por nuevo: Gasto, regla: String?) async throws {
         var cuerpo: [String: Any] = [
             "action": "editarGasto", "fechaOriginal": iso(original.fecha), "fila": original.fila ?? 0,
-            "fecha": iso(nuevo.fecha), "importe": nuevo.importe, "concepto": nuevo.concepto,
+            "fecha": iso(nuevo.fecha), "importe": nuevo.total, "concepto": nuevo.concepto,
             "categoria": nuevo.categoria, "metodo": nuevo.metodo,
         ]
         if let regla { cuerpo["regla"] = regla }
@@ -101,6 +101,16 @@ struct API {
 
     func borrarDeseo(id: String) async throws {
         try await enviar(["action": "borrarDeseo", "id": id])
+    }
+
+    /// Sin partes, quita el reparto. `claveAnterior` es la clave del gasto antes de cambiarle la fecha.
+    func guardarReparto(gasto: Gasto, claveAnterior: String?, partes: [Reparto.Parte], saldado: Bool) async throws {
+        var cuerpo: [String: Any] = [
+            "action": "guardarReparto", "clave": gasto.clave, "concepto": gasto.concepto, "pagado": gasto.total,
+            "partes": partes.map { ["importe": $0.importe, "personas": $0.personas] }, "saldado": saldado,
+        ]
+        if let claveAnterior, claveAnterior != gasto.clave { cuerpo["claveAnterior"] = claveAnterior }
+        try await enviar(cuerpo)
     }
 
     // MARK: - Transporte

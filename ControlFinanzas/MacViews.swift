@@ -20,6 +20,11 @@ struct MacContentView: View {
                             .badge(almacen.sinClasificar.count)
                             .tag(SeccionMac.sinClasificar)
                     }
+                    if !almacen.datos.repartos.isEmpty {
+                        Label("Piso compartido", systemImage: "person.2")
+                            .badge(almacen.teDeben > 0 ? Text(Formato.eurSinDecimales(almacen.teDeben)) : nil)
+                            .tag(SeccionMac.piso)
+                    }
                     Label("Meses", systemImage: "calendar").tag(SeccionMac.meses)
                     Label("Ahorro", systemImage: "lightbulb").tag(SeccionMac.ahorro)
                     Label("Wishlist", systemImage: "gift").tag(SeccionMac.wishlist)
@@ -83,6 +88,8 @@ struct MacContentView: View {
                 MesesView()
             case .ahorro:
                 AhorroView()
+            case .piso:
+                PisoView()
             case .wishlist:
                 WishlistView()
                     .navigationTitle("Wishlist")

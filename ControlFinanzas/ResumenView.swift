@@ -27,6 +27,10 @@ struct ResumenView: View {
                         AvisoSinClasificar(cantidad: almacen.sinClasificar.count)
                     }
 
+                    if almacen.teDeben > 0 {
+                        AvisoPiso(importe: almacen.teDeben, cantidad: almacen.pendientesPiso.count)
+                    }
+
                     if r.mes == .actual {
                         TarjetaRitmo(resumen: r)
                     }

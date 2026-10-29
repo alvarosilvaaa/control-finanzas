@@ -51,7 +51,7 @@ final class Navegacion {
 }
 
 enum SeccionMac: Hashable {
-    case resumen, movimientos, sinClasificar, meses, ahorro, wishlist
+    case resumen, movimientos, sinClasificar, meses, ahorro, wishlist, piso
     case categoria(String)
     /// Gastos de un día concreto (al hacer clic en el gráfico del resumen).
     case dia(Date)

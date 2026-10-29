@@ -9,9 +9,47 @@ struct Gasto: Codable, Identifiable, Hashable {
     var metodo: String
     /// Fila en la hoja (pista para localizarlo al editar).
     var fila: Int?
+    /// Lo pagado de verdad cuando parte del gasto se reparte con el piso; `importe` es entonces solo tu parte.
+    var pagado: Double?
 
     /// Recién creado y aún sin confirmar por la hoja: no se puede editar todavía.
     var pendiente: Bool { id.hasPrefix("local-") }
+
+    /// Importe del ticket completo (el que está en la hoja).
+    var total: Double { pagado ?? importe }
+    var compartido: Bool { pagado != nil }
+
+    /// Identifica el gasto en la hoja de repartos: su marca temporal en ISO, como la envía el script.
+    var clave: String {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f.string(from: fecha)
+    }
+}
+
+/// Qué parte de un gasto se reparte con el piso, y si ya te lo han pagado.
+struct Reparto: Codable, Hashable {
+    struct Parte: Codable, Hashable {
+        var importe: Double
+        /// Entre cuántas personas se divide, contándote a ti.
+        var personas: Int
+
+        var tuParte: Double { importe / Double(personas) }
+        var teDeben: Double { importe - tuParte }
+    }
+
+    var clave: String
+    var partes: [Parte]
+    var saldado: Bool
+
+    static func redondear(_ v: Double) -> Double { (v * 100).rounded() / 100 }
+
+    /// Lo que te cuesta a ti un ticket de `total`: lo no compartido más tu parte de lo compartido.
+    func tuParte(de total: Double) -> Double {
+        Self.redondear(total - partes.reduce(0) { $0 + $1.importe } + partes.reduce(0) { $0 + $1.tuParte })
+    }
+
+    var teDeben: Double { Self.redondear(partes.reduce(0) { $0 + $1.teDeben }) }
 }
 
 struct IngresoExtra: Codable, Identifiable, Hashable {
@@ -78,7 +116,24 @@ struct DatosFinanzas: Codable {
     var frecuentes: [Frecuente] = []
     var limites: [LimiteCategoria] = []
     var deseos: [Deseo] = []
+    var repartos: [Reparto] = []
     var presupuestoPorDefecto: Double
+
+    /// Ajusta cada gasto compartido para que `importe` sea solo tu parte. Se puede aplicar varias veces.
+    mutating func aplicarRepartos() {
+        var porClave = [String: Reparto]()
+        for r in repartos where !r.partes.isEmpty { porClave[r.clave] = r }
+        for i in gastos.indices {
+            let total = gastos[i].total
+            if let r = porClave[gastos[i].clave] {
+                gastos[i].pagado = total
+                gastos[i].importe = r.tuParte(de: total)
+            } else {
+                gastos[i].pagado = nil
+                gastos[i].importe = total
+            }
+        }
+    }
 
     static let vacio = DatosFinanzas(gastos: [], reglas: [], presupuestos: [], ingresos: [], presupuestoPorDefecto: 450)
 
@@ -102,7 +157,9 @@ struct DatosFinanzas: Codable {
         frecuentes = try c.decodeIfPresent([Frecuente].self, forKey: .frecuentes) ?? []
         limites = try c.decodeIfPresent([LimiteCategoria].self, forKey: .limites) ?? []
         deseos = try c.decodeIfPresent([Deseo].self, forKey: .deseos) ?? []
+        repartos = try c.decodeIfPresent([Reparto].self, forKey: .repartos) ?? []
         presupuestoPorDefecto = try c.decode(Double.self, forKey: .presupuestoPorDefecto)
+        aplicarRepartos()
     }
 }
 

@@ -221,7 +221,13 @@ struct FilaGasto: View {
             }
             Spacer(minLength: 8)
             if gasto.pendiente { ProgressView().controlSize(.mini) }
-            Text(Formato.eur(gasto.importe)).font(.body.weight(.semibold)).monospacedDigit()
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(Formato.eur(gasto.importe)).font(.body.weight(.semibold)).monospacedDigit()
+                // Gasto repartido con el piso: arriba tu parte, debajo el ticket completo.
+                if gasto.compartido {
+                    Text("de \(Formato.eur(gasto.total))").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                }
+            }
         }
         .contentShape(Rectangle())
     }
@@ -231,8 +237,9 @@ struct FilaGasto: View {
         let fecha = conFecha
             ? gasto.fecha.formatted(.dateTime.day().month(.abbreviated).locale(Locale(identifier: "es_ES")))
             : gasto.fecha.formatted(Formato.hora)
-        return [fecha, gasto.categoria == "Sin clasificar" ? "Sin clasificar" : gasto.categoria, Formato.metodo(gasto.metodo)]
-            .joined(separator: " · ")
+        var partes = [fecha, gasto.categoria, Formato.metodo(gasto.metodo)]
+        if gasto.compartido { partes.append("Compartido") }
+        return partes.joined(separator: " · ")
     }
 }
 
