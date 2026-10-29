@@ -11,6 +11,7 @@ struct MacResumenView: View {
         nonmutating set { navegacion.mesResumen = newValue }
     }
     @State private var editandoPresupuesto = false
+    @State private var cerrandoMes = false
     @State private var editando: Gasto?
 
     var body: some View {
@@ -45,7 +46,7 @@ struct MacResumenView: View {
         }
         .background(Color.fondo)
         .navigationTitle(mes.nombre)
-        .navigationSubtitle(mes == .actual ? "Mes en curso" : "Resumen")
+        .navigationSubtitle(mes.personalizado ? mes.rango : (mes == .actual ? "Mes en curso" : "Resumen"))
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 ControlGroup {
@@ -60,6 +61,12 @@ struct MacResumenView: View {
                     Button("Hoy") { mes = .actual }
                 }
             }
+            if mes == .actual {
+                ToolbarItem {
+                    Button { cerrandoMes = true } label: { Label("Cerrar el mes", systemImage: "calendar.badge.checkmark") }
+                        .help("Cerrar el mes hoy y abrir el siguiente (si ya has cobrado)")
+                }
+            }
             ToolbarItem {
                 BotonRecargar()
             }
@@ -68,6 +75,9 @@ struct MacResumenView: View {
             }
         }
         .sheet(isPresented: $editandoPresupuesto) { PresupuestoView(mes: mes) }
+        .sheet(isPresented: $cerrandoMes) {
+            CerrarMesView { abierto in mes = abierto }.fontDesign(.rounded)
+        }
         .sheet(item: $editando) { EditarGastoView(gasto: $0) }
     }
 }
@@ -230,9 +240,10 @@ private struct GraficoAcumuladoMac: View {
                     .foregroundStyle(Tema.tinta)
                     .annotation(position: .top, spacing: 8, overflowResolution: .init(x: .fit, y: .disabled)) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Día \(punto.dia)").font(.caption).foregroundStyle(.secondary)
+                            Text(r.mes.fecha(dia: punto.dia).formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "es_ES"))).capitalized)
+                                .font(.caption).foregroundStyle(.secondary)
                             Text(Formato.eur(punto.total)).font(.callout.bold())
-                            let delDia = r.gastos.filter { Calendar.current.component(.day, from: $0.fecha) == punto.dia }
+                            let delDia = r.gastos.filter { r.mes.dia(de: $0.fecha) == punto.dia }
                             Text(delDia.isEmpty ? "Sin gastos ese día"
                                  : "\(Formato.eur(delDia.reduce(0) { $0 + $1.importe })) ese día · \(delDia.count) \(delDia.count == 1 ? "gasto" : "gastos")")
                                 .font(.caption2).foregroundStyle(.secondary)
@@ -258,9 +269,8 @@ private struct GraficoAcumuladoMac: View {
                         }
                     }
                     .onTapGesture { p in
-                        guard let d = dia(en: p.x, proxy, geo),
-                              let fecha = Calendar.current.date(byAdding: .day, value: d - 1, to: r.mes.inicio) else { return }
-                        navegacion.seccion = .dia(fecha)
+                        guard let d = dia(en: p.x, proxy, geo) else { return }
+                        navegacion.seccion = .dia(r.mes.fecha(dia: d))
                     }
                     .pointerStyle(diaSeleccionado == nil ? .default : .link)
             }

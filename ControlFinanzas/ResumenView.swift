@@ -6,6 +6,7 @@ struct ResumenView: View {
     @Binding var mostrandoNuevo: Bool
     @State private var mes = Mes.actual
     @State private var mostrandoPresupuesto = false
+    @State private var cerrandoMes = false
 
     var body: some View {
         let r = almacen.resumen(de: mes)
@@ -25,6 +26,11 @@ struct ResumenView: View {
 
                     if !almacen.sinClasificar.isEmpty {
                         AvisoSinClasificar(cantidad: almacen.sinClasificar.count)
+                    }
+
+                    // En la última semana del mes, por si ya has cobrado.
+                    if r.mes == .actual && r.diasRestantes <= 6 {
+                        AvisoCerrarMes { cerrandoMes = true }
                     }
 
                     if almacen.teDeben > 0 {
@@ -73,6 +79,9 @@ struct ResumenView: View {
             .sheet(isPresented: $mostrandoPresupuesto) {
                 PresupuestoView(mes: mes)
             }
+            .sheet(isPresented: $cerrandoMes) {
+                CerrarMesView { abierto in mes = abierto }.fontDesign(.rounded)
+            }
             .navigationDestination(for: String.self) { categoria in
                 ListaGastosView(titulo: categoria) { [mes] in mes.contiene($0.fecha) && $0.categoria == categoria }
             }
@@ -102,7 +111,12 @@ struct SelectorMes: View {
         HStack {
             Button { mes = mes.anterior } label: { Image(systemName: "chevron.left") }
             Spacer()
-            Text(mes.nombre).font(.headline)
+            VStack(spacing: 1) {
+                Text(mes.nombre).font(.headline)
+                if mes.personalizado {
+                    Text(mes.rango).font(.caption).foregroundStyle(.secondary)
+                }
+            }
             Spacer()
             Button { mes = mes.siguiente } label: { Image(systemName: "chevron.right") }
                 .disabled(mes >= .actual)

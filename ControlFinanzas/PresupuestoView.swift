@@ -9,6 +9,7 @@ struct PresupuestoView: View {
     @State private var guardando = false
     @State private var error: String?
     @State private var añadiendoIngreso = false
+    @State private var cerrandoMes = false
 
     var body: some View {
         let r = almacen.resumen(de: mes)
@@ -59,6 +60,25 @@ struct PresupuestoView: View {
                     Text("Propinas, regalos, devoluciones… Se suman al presupuesto de este mes. Desliza para borrar.")
                 }
 
+                if mes == .actual {
+                    Section {
+                        Button { cerrandoMes = true } label: {
+                            Label("Cerrar el mes hoy", systemImage: "calendar.badge.checkmark")
+                        }
+                        if Mes.inicios[mes.clave] != nil {
+                            Button("Deshacer el cierre (empezar el día 1)", role: .destructive) {
+                                Task { await ejecutar { try await almacen.deshacerCierre(de: mes) } }
+                            }
+                        }
+                    } header: {
+                        Text("Periodo")
+                    } footer: {
+                        Text(mes.personalizado
+                             ? "\(mes.nombre) va del \(mes.rango). Si ya has cobrado, cierra el mes y empieza el siguiente."
+                             : "Si cobras antes de fin de mes, ciérralo hoy y empieza el siguiente con el dinero que tengas.")
+                    }
+                }
+
                 Section {
                     LabeledContent("Base", value: Formato.eur(r.base))
                     LabeledContent("Ingresos extra", value: "+" + Formato.eur(r.totalExtra))
@@ -76,6 +96,9 @@ struct PresupuestoView: View {
                 }
             }
             .onAppear { baseTexto = Self.texto(r.base) }
+            .sheet(isPresented: $cerrandoMes, onDismiss: { baseTexto = Self.texto(almacen.resumen(de: mes).base) }) {
+                CerrarMesView { _ in dismiss() }.fontDesign(.rounded)
+            }
             .alertaError($error)
             .hojaMac()
             .ocultarTecladoFacil()

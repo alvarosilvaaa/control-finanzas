@@ -62,6 +62,15 @@ struct IngresoExtra: Codable, Identifiable, Hashable {
 struct PresupuestoMes: Codable, Hashable {
     let mes: String   // "aaaa-MM"
     let base: Double
+    /// Si cerraste el mes anterior antes del día 1: cuándo empezó este periodo (ISO).
+    var inicio: String? = nil
+
+    var fechaInicio: Date? {
+        guard let inicio, !inicio.isEmpty else { return nil }
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f.date(from: inicio) ?? ISO8601DateFormatter().date(from: inicio)
+    }
 }
 
 struct Regla: Codable, Hashable {
@@ -176,9 +185,17 @@ struct Mes: Hashable, Comparable, Identifiable {
         self.mes = mes
     }
 
+    /// El periodo al que pertenece una fecha, teniendo en cuenta los meses cerrados antes de tiempo.
     init(_ fecha: Date, calendario: Calendar = .current) {
         let c = calendario.dateComponents([.year, .month], from: fecha)
-        self.init(año: c.year!, mes: c.month!)
+        let natural = Mes(año: c.year!, mes: c.month!)
+        if fecha >= natural.siguiente.inicio {
+            self = natural.siguiente
+        } else if fecha < natural.inicio {
+            self = natural.anterior
+        } else {
+            self = natural
+        }
     }
 
     init?(clave: String) {
@@ -187,23 +204,52 @@ struct Mes: Hashable, Comparable, Identifiable {
         self.init(año: partes[0], mes: partes[1])
     }
 
+    /// Inicio de los periodos que no empiezan el día 1 (clave "aaaa-MM" → fecha). Lo rellena el almacén.
+    static var inicios: [String: Date] = [:]
+
     static var actual: Mes { Mes(Date()) }
 
-    var inicio: Date { Calendar.current.date(from: DateComponents(year: año, month: mes, day: 1))! }
-    var fin: Date { Calendar.current.date(byAdding: .month, value: 1, to: inicio)! }
-    var numeroDeDias: Int { Calendar.current.range(of: .day, in: .month, for: inicio)!.count }
+    /// Día 1 del mes de calendario.
+    var inicioNatural: Date { Calendar.current.date(from: DateComponents(year: año, month: mes, day: 1))! }
+    var inicio: Date { Mes.inicios[clave] ?? inicioNatural }
+    var fin: Date { siguiente.inicio }
+    /// El periodo no coincide con el mes de calendario (se cerró antes o después del día 1).
+    var personalizado: Bool { inicio != inicioNatural || fin != siguiente.inicioNatural }
 
-    func sumando(_ meses: Int) -> Mes { Mes(Calendar.current.date(byAdding: .month, value: meses, to: inicio)!) }
+    /// Días del periodo, contando entero el día en que se cerró (por la mañana aún era de este mes).
+    var numeroDeDias: Int { max(dia(de: fin.addingTimeInterval(-1)), 1) }
+
+    /// Número de día dentro del periodo (1 = primer día).
+    func dia(de fecha: Date) -> Int {
+        let cal = Calendar.current
+        return (cal.dateComponents([.day], from: cal.startOfDay(for: inicio), to: cal.startOfDay(for: fecha)).day ?? 0) + 1
+    }
+
+    func fecha(dia: Int) -> Date {
+        Calendar.current.date(byAdding: .day, value: dia - 1, to: Calendar.current.startOfDay(for: inicio))!
+    }
+
+    func sumando(_ meses: Int) -> Mes {
+        let total = año * 12 + (mes - 1) + meses
+        return Mes(año: total / 12, mes: total % 12 + 1)
+    }
     var anterior: Mes { sumando(-1) }
     var siguiente: Mes { sumando(1) }
 
     func contiene(_ fecha: Date) -> Bool { fecha >= inicio && fecha < fin }
 
+    /// "28 oct – 27 nov"
+    var rango: String {
+        let estilo = Date.FormatStyle.dateTime.day().month(.abbreviated).locale(Locale(identifier: "es_ES"))
+        let ultimo = Calendar.current.date(byAdding: .second, value: -1, to: fin)!
+        return "\(inicio.formatted(estilo)) – \(ultimo.formatted(estilo))"
+    }
+
     var nombre: String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "es_ES")
         f.dateFormat = "LLLL yyyy"
-        return f.string(from: inicio).capitalized(with: f.locale)
+        return f.string(from: inicioNatural).capitalized(with: f.locale)
     }
 
     /// Solo el mes, en minúscula: "octubre".
@@ -211,14 +257,14 @@ struct Mes: Hashable, Comparable, Identifiable {
         let f = DateFormatter()
         f.locale = Locale(identifier: "es_ES")
         f.dateFormat = "LLLL"
-        return f.string(from: inicio)
+        return f.string(from: inicioNatural)
     }
 
     var nombreCorto: String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "es_ES")
         f.dateFormat = "LLL"
-        return f.string(from: inicio).capitalized(with: f.locale)
+        return f.string(from: inicioNatural).capitalized(with: f.locale)
     }
 
     static func < (a: Mes, b: Mes) -> Bool { (a.año, a.mes) < (b.año, b.mes) }
@@ -254,7 +300,7 @@ struct ResumenMes {
         let hoy = Date()
         if hoy >= mes.fin { return mes.numeroDeDias }
         if hoy < mes.inicio { return 0 }
-        return Calendar.current.component(.day, from: hoy)
+        return min(mes.dia(de: hoy), mes.numeroDeDias)
     }
 
     var diasRestantes: Int { mes.numeroDeDias - diasTranscurridos }
@@ -272,9 +318,8 @@ struct ResumenMes {
 
     /// Gasto acumulado por día, para el gráfico.
     var acumuladoPorDia: [(dia: Int, total: Double)] {
-        let cal = Calendar.current
         var porDia = [Int: Double]()
-        for g in gastos { porDia[cal.component(.day, from: g.fecha), default: 0] += g.importe }
+        for g in gastos { porDia[mes.dia(de: g.fecha), default: 0] += g.importe }
         var acumulado = 0.0
         return (1...max(diasTranscurridos, 1)).map { dia in
             acumulado += porDia[dia] ?? 0

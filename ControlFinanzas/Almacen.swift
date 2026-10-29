@@ -3,7 +3,9 @@ import Observation
 
 @Observable
 final class Almacen {
-    private(set) var datos: DatosFinanzas = .vacio
+    private(set) var datos: DatosFinanzas = .vacio {
+        didSet { Self.actualizarPeriodos(datos) }
+    }
     private(set) var cargando = false
     private(set) var ultimaActualizacion: Date?
     var error: String?
@@ -28,6 +30,14 @@ final class Almacen {
             ultimaActualizacion = cache.fecha
         }
         if modoDemo { datos = Demo.datos() }
+        Self.actualizarPeriodos(datos)
+    }
+
+    /// Los meses cerrados antes de tiempo cambian qué gastos entran en cada mes.
+    private static func actualizarPeriodos(_ datos: DatosFinanzas) {
+        var inicios = [String: Date]()
+        for p in datos.presupuestos { if let f = p.fechaInicio { inicios[p.mes] = f } }
+        if inicios != Mes.inicios { Mes.inicios = inicios }
     }
 
     // MARK: - Consultas
@@ -243,16 +253,43 @@ final class Almacen {
     }
 
     func fijarPresupuesto(_ base: Double, desde mes: Mes) async throws {
+        try await guardarPresupuesto(mes, base: base, inicio: nil)
+    }
+
+    /// `inicio`: nil no lo toca, "" vuelve al día 1, una fecha ISO abre el periodo en ese momento.
+    private func guardarPresupuesto(_ mes: Mes, base: Double, inicio: String?) async throws {
         if modoDemo {
+            let anterior = datos.presupuestos.first { $0.mes == mes.clave }
             datos.presupuestos.removeAll { $0.mes == mes.clave }
-            datos.presupuestos.append(PresupuestoMes(mes: mes.clave, base: base))
+            datos.presupuestos.append(PresupuestoMes(mes: mes.clave, base: base, inicio: inicio ?? anterior?.inicio))
             return
         }
         guard let api else { throw ErrorAPI.sinConfigurar }
-        try await api.fijarPresupuesto(mes: mes, base: base)
+        try await api.fijarPresupuesto(mes: mes, base: base, inicio: inicio)
         await recargar()
     }
 
+    // MARK: - Cerrar el mes antes de tiempo
+
+    /// El mes que se abre si cierras hoy: el siguiente (o el actual, si ya es día 1 y aún no lo habías cerrado).
+    var mesQueSeAbre: Mes {
+        let c = Calendar.current.dateComponents([.year, .month], from: Date().addingTimeInterval(15 * 86_400))
+        let cercano = Mes(año: c.year!, mes: c.month!)
+        if cercano == .actual && Mes.inicios[cercano.clave] != nil { return cercano.siguiente }
+        return cercano
+    }
+
+    /// Cierra el periodo en curso ahora mismo y abre el siguiente con `base` euros.
+    func cerrarMes(empezandoCon base: Double) async throws {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        try await guardarPresupuesto(mesQueSeAbre, base: base, inicio: f.string(from: Date()))
+    }
+
+    /// Deshace el cierre: el mes vuelve a empezar el día 1.
+    func deshacerCierre(de mes: Mes) async throws {
+        try await guardarPresupuesto(mes, base: base(de: mes), inicio: "")
+    }
     // MARK: - Límites por categoría
 
     var limites: [LimiteCategoria] {

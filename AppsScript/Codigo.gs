@@ -128,12 +128,16 @@ function leerDatos() {
   }
 
   const presupuestos = [];
-  const hojaPres = obtenerHoja(HOJA_PRESUPUESTO, ['Mes', 'Base']);
+  const hojaPres = hojaPresupuesto();
   if (hojaPres.getLastRow() > 1) {
-    hojaPres.getRange(2, 1, hojaPres.getLastRow() - 1, 2).getValues().forEach(f => {
+    hojaPres.getRange(2, 1, hojaPres.getLastRow() - 1, 3).getValues().forEach(f => {
       const mes = aMes(f[0]);
       const base = aNumero(f[1]);
-      if (mes && base !== null) presupuestos.push({ mes: mes, base: base });
+      const inicio = claveTexto(f[2]);
+      if (!mes || base === null) return;
+      const p = { mes: mes, base: base };
+      if (inicio) p.inicio = inicio;
+      presupuestos.push(p);
     });
   }
 
@@ -367,22 +371,40 @@ function borrarFrecuente(req) {
   }
 }
 
+/**
+ * Fija la base de un mes. Con "inicio" (fecha ISO) también fija cuándo empieza ese periodo,
+ * para cerrar el mes anterior antes del día 1; "inicio" vacío vuelve a empezar el día 1.
+ */
 function fijarPresupuesto(req) {
   const mes = aMes(req.mes);
   const base = aNumero(req.base);
   if (!mes) throw new Error('Mes no válido');
   if (base === null || base < 0) throw new Error('Presupuesto no válido');
-  const hoja = obtenerHoja(HOJA_PRESUPUESTO, ['Mes', 'Base']);
+  const cambiaInicio = req.inicio !== undefined && req.inicio !== null;
+  const inicio = cambiaInicio ? String(req.inicio).trim() : '';
+  if (inicio && isNaN(new Date(inicio))) throw new Error('Fecha de inicio no válida');
+  const hoja = hojaPresupuesto();
   if (hoja.getLastRow() > 1) {
     const meses = hoja.getRange(2, 1, hoja.getLastRow() - 1, 1).getValues();
     for (let i = 0; i < meses.length; i++) {
       if (aMes(meses[i][0]) === mes) {
         hoja.getRange(i + 2, 2).setValue(base);
+        if (cambiaInicio) hoja.getRange(i + 2, 3).setValue(inicio);
         return;
       }
     }
   }
-  hoja.appendRow([mes, base]);
+  hoja.appendRow([mes, base, inicio]);
+}
+
+/** Hoja Presupuesto con la columna "Inicio" (texto, para que Sheets no convierta las fechas). */
+function hojaPresupuesto() {
+  const hoja = obtenerHoja(HOJA_PRESUPUESTO, ['Mes', 'Base', 'Inicio']);
+  if (!String(hoja.getRange(1, 3).getValue()).trim()) {
+    hoja.getRange(1, 3).setValue('Inicio').setFontWeight('bold');
+  }
+  hoja.getRange('C:C').setNumberFormat('@');
+  return hoja;
 }
 
 // ---------- Límites por categoría ----------

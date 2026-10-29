@@ -80,8 +80,10 @@ struct API {
         try await enviar(["action": "borrarIngreso", "id": id])
     }
 
-    func fijarPresupuesto(mes: Mes, base: Double) async throws {
-        try await enviar(["action": "fijarPresupuesto", "mes": mes.clave, "base": base])
+    func fijarPresupuesto(mes: Mes, base: Double, inicio: String? = nil) async throws {
+        var cuerpo: [String: Any] = ["action": "fijarPresupuesto", "mes": mes.clave, "base": base]
+        if let inicio { cuerpo["inicio"] = inicio }
+        try await enviar(cuerpo)
     }
 
     /// `limite` nulo quita el límite de esa categoría.
