@@ -280,10 +280,16 @@ final class Almacen {
     }
 
     /// Cierra el periodo en curso ahora mismo y abre el siguiente con `base` euros.
+    /// El mes nuevo empieza a las 00:00 de hoy: lo gastado el día en que cobras ya cuenta en él.
     func cerrarMes(empezandoCon base: Double) async throws {
+        let nuevo = mesQueSeAbre
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        try await guardarPresupuesto(mesQueSeAbre, base: base, inicio: f.string(from: Date()))
+        try await guardarPresupuesto(nuevo, base: base, inicio: f.string(from: Calendar.current.startOfDay(for: Date())))
+        // Un script antiguo guarda el dinero pero ignora la fecha: mejor avisar que cerrar a medias.
+        if !modoDemo && Mes.inicios[nuevo.clave] == nil {
+            throw ErrorAPI.servidor("Se ha guardado el presupuesto de \(nuevo.nombre), pero no la fecha de cierre: el script de tu hoja está desactualizado. Publica una nueva versión en Apps Script (Implementar → Gestionar implementaciones → ✏️ → Nueva versión) y vuelve a cerrar el mes.")
+        }
     }
 
     /// Deshace el cierre: el mes vuelve a empezar el día 1.

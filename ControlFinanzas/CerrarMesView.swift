@@ -36,7 +36,7 @@ struct CerrarMesView: View {
                 } header: {
                     Text("Cierras \(cerrado.nombre)")
                 } footer: {
-                    Text("Lo que gastes a partir de ahora contará en \(nuevo.nombre). Los gastos anteriores se quedan en \(cerrado.nombre.lowercased()).")
+                    Text("Lo gastado desde hoy (también lo de esta mañana) contará en \(nuevo.nombre). Lo de días anteriores se queda en \(cerrado.nombre.lowercased()).")
                 }
 
                 Section {
