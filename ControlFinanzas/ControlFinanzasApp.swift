@@ -46,8 +46,8 @@ struct ControlFinanzasApp: App {
 final class Navegacion {
     var seccion: SeccionMac? = .resumen
     var mostrandoNuevo = false
-    /// Mes que se ve en el resumen; se conserva al ir a un día y volver.
-    var mesResumen = Mes.actual
+    /// Mes que se ve en el resumen; se conserva al ir a un día y volver. nil = el mes en curso.
+    var mesResumen: Mes?
 }
 
 enum SeccionMac: Hashable {

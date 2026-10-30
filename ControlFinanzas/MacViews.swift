@@ -160,7 +160,16 @@ struct TablaGastos: View {
     @Environment(Navegacion.self) private var navegacion
     @State private var seleccion = Set<Gasto.ID>()
     @State private var busqueda = ""
-    @State private var mes: Mes? = .actual
+    /// Filtro de mes: el mes en curso (aunque cambie al cerrarlo), uno fijo o todos (nil).
+    @State private var siguiendoActual = true
+    @State private var mesFijado: Mes?
+    private var mes: Mes? { siguiendoActual ? .actual : mesFijado }
+    private var selectorMes: Binding<Mes?> {
+        Binding(get: { mes }, set: { nuevo in
+            siguiendoActual = nuevo == .actual
+            mesFijado = nuevo
+        })
+    }
     @State private var orden = OrdenGastos.recientes
     @State private var categoria: String?
     @State private var metodo: String?
@@ -173,7 +182,7 @@ struct TablaGastos: View {
         self.titulo = titulo
         self.mostrarFiltroMes = mostrarFiltroMes
         self.incluir = incluir
-        _mes = State(initialValue: mostrarFiltroMes ? .actual : nil)
+        _siguiendoActual = State(initialValue: mostrarFiltroMes)
     }
 
     private var filas: [Gasto] {
@@ -253,7 +262,7 @@ struct TablaGastos: View {
             }
             if mostrarFiltroMes {
                 ToolbarItem {
-                    Picker("Mes", selection: $mes) {
+                    Picker("Mes", selection: selectorMes) {
                         Text("Todos los meses").tag(Mes?.none)
                         Divider()
                         ForEach(almacen.meses) { m in Text(m.nombre).tag(Mes?.some(m)) }

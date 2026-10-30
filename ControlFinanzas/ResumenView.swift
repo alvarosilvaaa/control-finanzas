@@ -4,7 +4,12 @@ import Charts
 struct ResumenView: View {
     @Environment(Almacen.self) private var almacen
     @Binding var mostrandoNuevo: Bool
-    @State private var mes = Mes.actual
+    /// nil = el mes en curso (que cambia al cerrar un mes, también desde el Mac).
+    @State private var elegido: Mes?
+    private var mes: Mes { elegido ?? .actual }
+    private var selector: Binding<Mes> {
+        Binding(get: { elegido ?? .actual }, set: { elegido = $0 == .actual ? nil : $0 })
+    }
     @State private var mostrandoPresupuesto = false
     @State private var cerrandoMes = false
 
@@ -13,7 +18,7 @@ struct ResumenView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    SelectorMes(mes: $mes)
+                    SelectorMes(mes: selector)
 
                     if let error = almacen.error {
                         AvisoError(mensaje: error)
@@ -80,7 +85,7 @@ struct ResumenView: View {
                 PresupuestoView(mes: mes)
             }
             .sheet(isPresented: $cerrandoMes) {
-                CerrarMesView { abierto in mes = abierto }.fontDesign(.rounded)
+                CerrarMesView { _ in elegido = nil }.fontDesign(.rounded)
             }
             .navigationDestination(for: String.self) { categoria in
                 ListaGastosView(titulo: categoria) { [mes] in mes.contiene($0.fecha) && $0.categoria == categoria }

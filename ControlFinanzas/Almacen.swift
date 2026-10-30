@@ -4,8 +4,10 @@ import Observation
 @Observable
 final class Almacen {
     private(set) var datos: DatosFinanzas = .vacio {
-        didSet { Self.actualizarPeriodos(datos) }
+        didSet { actualizarPeriodos() }
     }
+    /// Cambia cuando cambia el inicio de algún mes, para que las vistas que dependen de los periodos se redibujen.
+    private(set) var versionPeriodos = 0
     private(set) var cargando = false
     private(set) var ultimaActualizacion: Date?
     var error: String?
@@ -30,14 +32,17 @@ final class Almacen {
             ultimaActualizacion = cache.fecha
         }
         if modoDemo { datos = Demo.datos() }
-        Self.actualizarPeriodos(datos)
+        actualizarPeriodos()
     }
 
     /// Los meses cerrados antes de tiempo cambian qué gastos entran en cada mes.
-    private static func actualizarPeriodos(_ datos: DatosFinanzas) {
+    private func actualizarPeriodos() {
         var inicios = [String: Date]()
         for p in datos.presupuestos { if let f = p.fechaInicio { inicios[p.mes] = f } }
-        if inicios != Mes.inicios { Mes.inicios = inicios }
+        if inicios != Mes.inicios {
+            Mes.inicios = inicios
+            versionPeriodos += 1
+        }
     }
 
     // MARK: - Consultas
@@ -76,7 +81,8 @@ final class Almacen {
     }
 
     func resumen(de mes: Mes) -> ResumenMes {
-        ResumenMes(
+        _ = versionPeriodos
+        return ResumenMes(
             mes: mes,
             gastos: datos.gastos.filter { mes.contiene($0.fecha) }.sorted { $0.fecha > $1.fecha },
             ingresos: datos.ingresos.filter { mes.contiene($0.fecha) }.sorted { $0.fecha > $1.fecha },
@@ -86,6 +92,7 @@ final class Almacen {
 
     /// Meses con algún movimiento, del más reciente al más antiguo (siempre incluye el actual).
     var meses: [Mes] {
+        _ = versionPeriodos
         var s = Set(datos.gastos.map { Mes($0.fecha) })
         s.formUnion(datos.ingresos.map { Mes($0.fecha) })
         s.insert(.actual)
@@ -93,6 +100,12 @@ final class Almacen {
     }
 
     // MARK: - Acciones
+
+    /// Tras guardar algo: espera a la recarga en curso (que pudo empezar antes del cambio) y descarga de nuevo.
+    func recargarTrasCambio() async {
+        if let enCurso = recargaEnCurso { await enCurso.value }
+        await recargar()
+    }
 
     /// Si ya hay una recarga en marcha, espera a esa en vez de lanzar otra.
     func recargar() async {
@@ -138,7 +151,7 @@ final class Almacen {
                                   concepto: concepto, categoria: categoria, metodo: metodo))
         Task {
             try? await Task.sleep(for: .seconds(3))
-            await recargar()
+            await recargarTrasCambio()
         }
     }
 
@@ -157,7 +170,7 @@ final class Almacen {
                 datos.gastos[i].categoria = nuevo.categoria
             }
         }
-        if !modoDemo { await recargar() }
+        if !modoDemo { await recargarTrasCambio() }
     }
 
     func borrarGasto(_ gasto: Gasto) async throws {
@@ -166,12 +179,12 @@ final class Almacen {
             try await api.borrarGasto(gasto)
         }
         datos.gastos.removeAll { $0.id == gasto.id }
-        if !modoDemo { await recargar() }
+        if !modoDemo { await recargarTrasCambio() }
     }
 
     /// Cambia la categoría de varios gastos a la vez (selección múltiple en Mac).
     func cambiarCategoria(_ gastos: [Gasto], a categoria: String) async throws {
-        defer { if !modoDemo { Task { await recargar() } } }
+        defer { if !modoDemo { Task { await recargarTrasCambio() } } }
         for original in gastos where original.categoria != categoria {
             var nuevo = original
             nuevo.categoria = categoria
@@ -184,7 +197,7 @@ final class Almacen {
     }
 
     func borrarGastos(_ gastos: [Gasto]) async throws {
-        defer { if !modoDemo { Task { await recargar() } } }
+        defer { if !modoDemo { Task { await recargarTrasCambio() } } }
         for gasto in gastos {
             if !modoDemo {
                 guard let api else { throw ErrorAPI.sinConfigurar }
@@ -211,7 +224,7 @@ final class Almacen {
         if !modoDemo {
             guard let api else { throw ErrorAPI.sinConfigurar }
             try await api.guardarFrecuente(f)
-            await recargar()
+            await recargarTrasCambio()
         } else {
             datos.frecuentes.removeAll { $0.id == f.id }
             datos.frecuentes.append(f)
@@ -222,7 +235,7 @@ final class Almacen {
         if !modoDemo {
             guard let api else { throw ErrorAPI.sinConfigurar }
             try await api.borrarFrecuente(id: f.id)
-            await recargar()
+            await recargarTrasCambio()
         } else {
             datos.frecuentes.removeAll { $0.id == f.id }
         }
@@ -239,7 +252,7 @@ final class Almacen {
         }
         guard let api else { throw ErrorAPI.sinConfigurar }
         try await api.nuevoIngreso(importe: importe, concepto: concepto, fecha: fecha)
-        await recargar()
+        await recargarTrasCambio()
     }
 
     func borrarIngreso(_ ingreso: IngresoExtra) async throws {
@@ -249,7 +262,7 @@ final class Almacen {
         }
         guard let api else { throw ErrorAPI.sinConfigurar }
         try await api.borrarIngreso(id: ingreso.id)
-        await recargar()
+        await recargarTrasCambio()
     }
 
     func fijarPresupuesto(_ base: Double, desde mes: Mes) async throws {
@@ -266,7 +279,7 @@ final class Almacen {
         }
         guard let api else { throw ErrorAPI.sinConfigurar }
         try await api.fijarPresupuesto(mes: mes, base: base, inicio: inicio)
-        await recargar()
+        await recargarTrasCambio()
     }
 
     // MARK: - Cerrar el mes antes de tiempo
@@ -315,7 +328,7 @@ final class Almacen {
         }
         guard let api else { throw ErrorAPI.sinConfigurar }
         try await api.fijarLimite(categoria: categoria, limite: limite)
-        await recargar()
+        await recargarTrasCambio()
     }
 
     // MARK: - Repartos del piso
@@ -348,7 +361,7 @@ final class Almacen {
         }
         guard let api else { throw ErrorAPI.sinConfigurar }
         try await api.guardarReparto(gasto: gasto, claveAnterior: claveAnterior, partes: partes, saldado: saldado)
-        await recargar()
+        await recargarTrasCambio()
     }
 
     func marcarSaldado(_ gasto: Gasto, _ saldado: Bool) async throws {
@@ -377,19 +390,19 @@ final class Almacen {
         }
         guard let api else { throw ErrorAPI.sinConfigurar }
         try await api.guardarDeseo(d)
-        await recargar()
+        await recargarTrasCambio()
     }
 
     func borrarDeseo(_ d: Deseo) async throws {
         if modoDemo { datos.deseos.removeAll { $0.id == d.id }; return }
         guard let api else { throw ErrorAPI.sinConfigurar }
         try await api.borrarDeseo(id: d.id)
-        await recargar()
+        await recargarTrasCambio()
     }
 
     func ajustesCambiados() async {
         if !modoDemo, let cache = Self.leerCache() { datos = cache.datos } else if !modoDemo { datos = .vacio }
-        await recargar()
+        await recargarTrasCambio()
     }
 
     // MARK: - Caché local (para abrir la app sin conexión)

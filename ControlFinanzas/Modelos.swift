@@ -314,7 +314,13 @@ struct ResumenMes {
     }
 
     /// Gasto estimado a final de mes al ritmo actual.
-    var proyeccion: Double { mediaDiaria * Double(mes.numeroDeDias) }
+    /// Los dos primeros días hay muy poco dato: se supone que el resto del mes sigues el ritmo previsto.
+    var proyeccion: Double {
+        if diasTranscurridos < 3 {
+            return totalGastado + presupuesto / Double(mes.numeroDeDias) * Double(mes.numeroDeDias - diasTranscurridos)
+        }
+        return mediaDiaria * Double(mes.numeroDeDias)
+    }
 
     /// Gasto acumulado por día, para el gráfico.
     var acumuladoPorDia: [(dia: Int, total: Double)] {

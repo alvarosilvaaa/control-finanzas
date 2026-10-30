@@ -7,8 +7,8 @@ struct MacResumenView: View {
     @Environment(Almacen.self) private var almacen
     @Environment(Navegacion.self) private var navegacion
     private var mes: Mes {
-        get { navegacion.mesResumen }
-        nonmutating set { navegacion.mesResumen = newValue }
+        get { navegacion.mesResumen ?? .actual }
+        nonmutating set { navegacion.mesResumen = newValue == .actual ? nil : newValue }
     }
     @State private var editandoPresupuesto = false
     @State private var cerrandoMes = false
